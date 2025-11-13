@@ -8,7 +8,7 @@ const Index = () => {
   const sounds = [
     { title: "Alkış", videoId: "barWV7RWkq0", colorClass: "bg-sound-1 hover:bg-sound-1/90" },
     { title: "Fail Sesi", videoId: "267Z-i_3k2c", colorClass: "bg-sound-2 hover:bg-sound-2/90" },
-    { title: "Trampet", videoId: "1D5Sa2Yq-4E", colorClass: "bg-sound-3 hover:bg-sound-3/90" },
+    { title: "Trampet", videoId: "IIzVnuhttYs", colorClass: "bg-sound-3 hover:bg-sound-3/90" },
     { title: "Komik Gülme", videoId: "H47ow4_Cmk0", colorClass: "bg-sound-4 hover:bg-sound-4/90" },
     { title: "Vay Be!", videoId: "KlLMlJ2tDkg", colorClass: "bg-sound-5 hover:bg-sound-5/90" },
     { title: "Drama", videoId: "cphNpqKpKc4", colorClass: "bg-sound-6 hover:bg-sound-6/90" },
