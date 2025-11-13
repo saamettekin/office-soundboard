@@ -14,6 +14,7 @@ const Index = () => {
     { title: "Drama", videoId: "YPRtYP8g40Y", colorClass: "bg-sound-6 hover:bg-sound-6/90" },
     { title: "Neee Diyooo", videoId: "1vdYlqYVX2I", colorClass: "bg-sound-6 hover:bg-sound-6/90" },
     { title: "İğrenç Kahkaha", videoId: "Cfo6C15QEOU", colorClass: "bg-sound-6 hover:bg-sound-6/90" },
+    { title: "Güldür Güldür", videoId: "5zaDrU4LNv4", colorClass: "bg-sound-6 hover:bg-sound-6/90" },
   ];
 
   return (
