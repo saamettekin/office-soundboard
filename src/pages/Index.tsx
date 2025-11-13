@@ -12,6 +12,7 @@ const Index = () => {
     { title: "Komik Gülme", videoId: "H47ow4_Cmk0", colorClass: "bg-sound-4 hover:bg-sound-4/90" },
     { title: "Vay Be!", videoId: "KlLMlJ2tDkg", colorClass: "bg-sound-5 hover:bg-sound-5/90" },
     { title: "Drama", videoId: "YPRtYP8g40Y", colorClass: "bg-sound-6 hover:bg-sound-6/90" },
+    { title: "Neee Diyooo", videoId: "1vdYlqYVX2I", colorClass: "bg-sound-6 hover:bg-sound-6/90" },
   ];
 
   return (
