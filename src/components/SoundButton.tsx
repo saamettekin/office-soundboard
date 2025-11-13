@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
+import AudioWaveform from "./AudioWaveform";
 
 interface SoundButtonProps {
   title: string;
@@ -68,6 +69,7 @@ const SoundButton = ({ title, videoId, colorClass }: SoundButtonProps) => {
           ) : (
             <Volume2 className="h-8 w-8" />
           )}
+          <AudioWaveform isPlaying={isPlaying} />
           <span>{title}</span>
         </div>
       </Button>
