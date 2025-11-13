@@ -1,21 +1,53 @@
+import { useState, useEffect } from "react";
 import { useYouTubeAPI } from "@/hooks/useYouTubeAPI";
 import SoundButton from "@/components/SoundButton";
+import AddSoundForm from "@/components/AddSoundForm";
 import { Loader2 } from "lucide-react";
+
+interface Sound {
+  title: string;
+  videoId: string;
+  colorClass: string;
+}
+
+const DEFAULT_SOUNDS: Sound[] = [
+  { title: "Alkış", videoId: "barWV7RWkq0", colorClass: "bg-sound-1 hover:bg-sound-1/90" },
+  { title: "Fail Sesi", videoId: "267Z-i_3k2c", colorClass: "bg-sound-2 hover:bg-sound-2/90" },
+  { title: "Trampet", videoId: "IIzVnuhttYs", colorClass: "bg-sound-3 hover:bg-sound-3/90" },
+  { title: "Komik Gülme", videoId: "H47ow4_Cmk0", colorClass: "bg-sound-4 hover:bg-sound-4/90" },
+  { title: "Vay Be!", videoId: "KlLMlJ2tDkg", colorClass: "bg-sound-5 hover:bg-sound-5/90" },
+  { title: "Drama", videoId: "YPRtYP8g40Y", colorClass: "bg-sound-6 hover:bg-sound-6/90" },
+  { title: "Neee Diyooo", videoId: "1vdYlqYVX2I", colorClass: "bg-sound-6 hover:bg-sound-6/90" },
+  { title: "İğrenç Kahkaha", videoId: "Cfo6C15QEOU", colorClass: "bg-sound-6 hover:bg-sound-6/90" },
+  { title: "Güldür Güldür", videoId: "5zaDrU4LNv4", colorClass: "bg-sound-6 hover:bg-sound-6/90" },
+];
+
+const STORAGE_KEY = "soundboard-sounds";
 
 const Index = () => {
   const isYouTubeReady = useYouTubeAPI();
+  const [sounds, setSounds] = useState<Sound[]>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : DEFAULT_SOUNDS;
+  });
 
-  const sounds = [
-    { title: "Alkış", videoId: "barWV7RWkq0", colorClass: "bg-sound-1 hover:bg-sound-1/90" },
-    { title: "Fail Sesi", videoId: "267Z-i_3k2c", colorClass: "bg-sound-2 hover:bg-sound-2/90" },
-    { title: "Trampet", videoId: "IIzVnuhttYs", colorClass: "bg-sound-3 hover:bg-sound-3/90" },
-    { title: "Komik Gülme", videoId: "H47ow4_Cmk0", colorClass: "bg-sound-4 hover:bg-sound-4/90" },
-    { title: "Vay Be!", videoId: "KlLMlJ2tDkg", colorClass: "bg-sound-5 hover:bg-sound-5/90" },
-    { title: "Drama", videoId: "YPRtYP8g40Y", colorClass: "bg-sound-6 hover:bg-sound-6/90" },
-    { title: "Neee Diyooo", videoId: "1vdYlqYVX2I", colorClass: "bg-sound-6 hover:bg-sound-6/90" },
-    { title: "İğrenç Kahkaha", videoId: "Cfo6C15QEOU", colorClass: "bg-sound-6 hover:bg-sound-6/90" },
-    { title: "Güldür Güldür", videoId: "5zaDrU4LNv4", colorClass: "bg-sound-6 hover:bg-sound-6/90" },
-  ];
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sounds));
+  }, [sounds]);
+
+  const handleAddSound = (title: string, videoId: string) => {
+    const colorClasses = [
+      "bg-sound-1 hover:bg-sound-1/90",
+      "bg-sound-2 hover:bg-sound-2/90",
+      "bg-sound-3 hover:bg-sound-3/90",
+      "bg-sound-4 hover:bg-sound-4/90",
+      "bg-sound-5 hover:bg-sound-5/90",
+      "bg-sound-6 hover:bg-sound-6/90",
+    ];
+    const colorClass = colorClasses[sounds.length % colorClasses.length];
+    
+    setSounds([...sounds, { title, videoId, colorClass }]);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-bg p-6">
@@ -35,16 +67,21 @@ const Index = () => {
             <p className="text-lg text-muted-foreground">Yükleniyor...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {sounds.map((sound) => (
-              <SoundButton
-                key={sound.videoId}
-                title={sound.title}
-                videoId={sound.videoId}
-                colorClass={sound.colorClass}
-              />
-            ))}
-          </div>
+          <>
+            <div className="mb-8">
+              <AddSoundForm onAddSound={handleAddSound} />
+            </div>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {sounds.map((sound) => (
+                <SoundButton
+                  key={sound.videoId}
+                  title={sound.title}
+                  videoId={sound.videoId}
+                  colorClass={sound.colorClass}
+                />
+              ))}
+            </div>
+          </>
         )}
 
         <footer className="mt-16 text-center">
