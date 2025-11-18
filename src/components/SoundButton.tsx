@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Volume2, VolumeX } from "lucide-react";
+import { Volume2, VolumeX, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AudioWaveform from "./AudioWaveform";
 
@@ -8,9 +8,10 @@ interface SoundButtonProps {
   title: string;
   videoId: string;
   colorClass: string;
+  onDelete: () => void;
 }
 
-const SoundButton = ({ title, videoId, colorClass }: SoundButtonProps) => {
+const SoundButton = ({ title, videoId, colorClass, onDelete }: SoundButtonProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [player, setPlayer] = useState<any>(null);
 
@@ -53,6 +54,16 @@ const SoundButton = ({ title, videoId, colorClass }: SoundButtonProps) => {
   return (
     <div className="relative">
       <div id={`player-${videoId}`} className="hidden"></div>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        className="absolute -top-2 -right-2 z-10 h-8 w-8 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center justify-center shadow-lg transition-all hover:scale-110"
+        aria-label="Sesi sil"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
       <Button
         onClick={toggleSound}
         className={cn(
