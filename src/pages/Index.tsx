@@ -49,6 +49,10 @@ const Index = () => {
     setSounds([...sounds, { title, videoId, colorClass }]);
   };
 
+  const handleDeleteSound = (videoId: string) => {
+    setSounds(sounds.filter((sound) => sound.videoId !== videoId));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-bg p-6">
       <div className="mx-auto max-w-5xl">
@@ -78,6 +82,7 @@ const Index = () => {
                   title={sound.title}
                   videoId={sound.videoId}
                   colorClass={sound.colorClass}
+                  onDelete={() => handleDeleteSound(sound.videoId)}
                 />
               ))}
             </div>
