@@ -5,7 +5,10 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
+
+const CATEGORIES = ["Alkış", "Komedi", "Efekt", "Drama", "Diğer"] as const;
 
 const formSchema = z.object({
   title: z.string().min(1, "Ses adı gerekli").max(50, "Ses adı çok uzun"),
@@ -16,12 +19,13 @@ const formSchema = z.object({
     },
     { message: "Geçerli bir YouTube linki girin" }
   ),
+  category: z.string().min(1, "Kategori seçmelisiniz"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 interface AddSoundFormProps {
-  onAddSound: (title: string, videoId: string) => void;
+  onAddSound: (title: string, videoId: string, category: string) => void;
 }
 
 const AddSoundForm = ({ onAddSound }: AddSoundFormProps) => {
@@ -32,6 +36,7 @@ const AddSoundForm = ({ onAddSound }: AddSoundFormProps) => {
     defaultValues: {
       title: "",
       youtubeUrl: "",
+      category: "",
     },
   });
 
@@ -43,7 +48,7 @@ const AddSoundForm = ({ onAddSound }: AddSoundFormProps) => {
   const onSubmit = (values: FormValues) => {
     const videoId = extractVideoId(values.youtubeUrl);
     if (videoId) {
-      onAddSound(values.title, videoId);
+      onAddSound(values.title, videoId, values.category);
       form.reset();
       setIsOpen(false);
     }
@@ -91,6 +96,30 @@ const AddSoundForm = ({ onAddSound }: AddSoundFormProps) => {
                 <FormControl>
                   <Input placeholder="https://youtube.com/watch?v=..." {...field} />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="category"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Kategori</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Kategori seç" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {CATEGORIES.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
