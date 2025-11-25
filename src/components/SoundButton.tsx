@@ -1,19 +1,32 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Volume2, VolumeX, Trash2 } from "lucide-react";
+import { Volume2, VolumeX, Trash2, Star, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AudioWaveform from "./AudioWaveform";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface SoundButtonProps {
   title: string;
   videoId: string;
   colorClass: string;
+  isFavorite: boolean;
   onDelete: () => void;
+  onToggleFavorite: () => void;
 }
 
-const SoundButton = ({ title, videoId, colorClass, onDelete }: SoundButtonProps) => {
+const SoundButton = ({ title, videoId, colorClass, isFavorite, onDelete, onToggleFavorite }: SoundButtonProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [player, setPlayer] = useState<any>(null);
+  
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: videoId });
 
   const toggleSound = () => {
     if (!player) {
@@ -51,9 +64,30 @@ const SoundButton = ({ title, videoId, colorClass, onDelete }: SoundButtonProps)
     }
   };
 
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
-    <div className="relative">
+    <div ref={setNodeRef} style={style} className="relative">
       <div id={`player-${videoId}`} className="hidden"></div>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleFavorite();
+        }}
+        className={cn(
+          "absolute -top-2 -left-2 z-10 h-8 w-8 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110",
+          isFavorite 
+            ? "bg-yellow-500 text-white hover:bg-yellow-600" 
+            : "bg-muted text-muted-foreground hover:bg-muted/80"
+        )}
+        aria-label="Favorilere ekle/çıkar"
+      >
+        <Star className={cn("h-4 w-4", isFavorite && "fill-current")} />
+      </button>
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -64,6 +98,13 @@ const SoundButton = ({ title, videoId, colorClass, onDelete }: SoundButtonProps)
       >
         <Trash2 className="h-4 w-4" />
       </button>
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-2 left-2 z-10 cursor-grab active:cursor-grabbing"
+      >
+        <GripVertical className="h-6 w-6 text-foreground/40 hover:text-foreground/60" />
+      </div>
       <Button
         onClick={toggleSound}
         className={cn(
