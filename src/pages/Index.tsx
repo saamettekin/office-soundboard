@@ -112,6 +112,14 @@ const Index = () => {
     setSounds(sounds.filter((sound) => sound.videoId !== videoId));
   };
 
+  const handleEditSound = (videoId: string, newTitle: string, newCategory: string) => {
+    setSounds(sounds.map((sound) =>
+      sound.videoId === videoId
+        ? { ...sound, title: newTitle, category: newCategory }
+        : sound
+    ));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-bg p-6">
       <div className="mx-auto max-w-5xl">
@@ -165,8 +173,10 @@ const Index = () => {
                       videoId={sound.videoId}
                       colorClass={sound.colorClass}
                       isFavorite={sound.isFavorite}
+                      category={sound.category}
                       onDelete={() => handleDeleteSound(sound.videoId)}
                       onToggleFavorite={() => handleToggleFavorite(sound.videoId)}
+                      onEdit={(newTitle, newCategory) => handleEditSound(sound.videoId, newTitle, newCategory)}
                     />
                   ))}
                 </div>
