@@ -3,7 +3,9 @@ import { useYouTubeAPI } from "@/hooks/useYouTubeAPI";
 import SoundButton from "@/components/SoundButton";
 import AddSoundForm from "@/components/AddSoundForm";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
+import { SplashScreen } from "@/components/SplashScreen";
+import { ProfileSelection, Profile } from "@/components/ProfileSelection";
 import {
   DndContext,
   closestCenter,
@@ -43,14 +45,63 @@ const DEFAULT_SOUNDS: Sound[] = [
 export const CATEGORIES = ["Tümü", "Alkış", "Komedi", "Efekt", "Drama", "Diğer"] as const;
 
 const STORAGE_KEY = "soundboard-sounds";
+const PROFILES_KEY = "soundboard-profiles";
+const PROFILE_SOUNDS_KEY = "soundboard-profile-sounds";
+const CURRENT_PROFILE_KEY = "soundboard-current-profile";
 
 const Index = () => {
   const isYouTubeReady = useYouTubeAPI();
-  const [sounds, setSounds] = useState<Sound[]>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : DEFAULT_SOUNDS;
+  const [showSplash, setShowSplash] = useState(() => {
+    return !localStorage.getItem(CURRENT_PROFILE_KEY);
   });
+  const [profiles, setProfiles] = useState<Profile[]>(() => {
+    const stored = localStorage.getItem(PROFILES_KEY);
+    if (stored) return JSON.parse(stored);
+    
+    // İlk yükleme: Samet profili ile başla
+    const defaultProfile: Profile = {
+      id: "samet",
+      name: "Samet",
+      avatar: "👤"
+    };
+    return [defaultProfile];
+  });
+  
+  const [currentProfileId, setCurrentProfileId] = useState<string | null>(() => {
+    return localStorage.getItem(CURRENT_PROFILE_KEY);
+  });
+  
+  const [profileSounds, setProfileSounds] = useState<{ [key: string]: Sound[] }>(() => {
+    const stored = localStorage.getItem(PROFILE_SOUNDS_KEY);
+    if (stored) return JSON.parse(stored);
+    
+    // Mevcut sesleri Samet profiline taşı
+    const oldSounds = localStorage.getItem(STORAGE_KEY);
+    const initialSounds = oldSounds ? JSON.parse(oldSounds) : DEFAULT_SOUNDS;
+    
+    return {
+      "samet": initialSounds
+    };
+  });
+  
   const [selectedCategory, setSelectedCategory] = useState<string>("Tümü");
+  
+  const sounds = currentProfileId ? (profileSounds[currentProfileId] || []) : [];
+  
+  const setSounds = (newSounds: Sound[] | ((prev: Sound[]) => Sound[])) => {
+    if (!currentProfileId) return;
+    
+    setProfileSounds(prev => {
+      const updated = typeof newSounds === 'function' 
+        ? newSounds(prev[currentProfileId] || [])
+        : newSounds;
+      
+      return {
+        ...prev,
+        [currentProfileId]: updated
+      };
+    });
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -60,8 +111,39 @@ const Index = () => {
   );
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sounds));
-  }, [sounds]);
+    localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+  }, [profiles]);
+  
+  useEffect(() => {
+    localStorage.setItem(PROFILE_SOUNDS_KEY, JSON.stringify(profileSounds));
+  }, [profileSounds]);
+  
+  useEffect(() => {
+    if (currentProfileId) {
+      localStorage.setItem(CURRENT_PROFILE_KEY, currentProfileId);
+    }
+  }, [currentProfileId]);
+  
+  const handleSelectProfile = (profileId: string) => {
+    setCurrentProfileId(profileId);
+  };
+  
+  const handleAddProfile = (name: string) => {
+    const newProfile: Profile = {
+      id: Date.now().toString(),
+      name,
+      avatar: "👤"
+    };
+    setProfiles([...profiles, newProfile]);
+    setProfileSounds(prev => ({
+      ...prev,
+      [newProfile.id]: []
+    }));
+  };
+  
+  const handleBackToProfiles = () => {
+    setCurrentProfileId(null);
+  };
 
   const handleAddSound = (title: string, videoId: string, category: string) => {
     const colorClasses = [
@@ -120,16 +202,47 @@ const Index = () => {
     ));
   };
 
+  if (showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} />;
+  }
+  
+  if (!currentProfileId) {
+    return (
+      <ProfileSelection
+        profiles={profiles}
+        onSelectProfile={handleSelectProfile}
+        onAddProfile={handleAddProfile}
+      />
+    );
+  }
+  
+  const currentProfile = profiles.find(p => p.id === currentProfileId);
+
   return (
     <div className="min-h-screen bg-gradient-bg p-6">
       <div className="mx-auto max-w-5xl">
-        <header className="mb-12 text-center">
-          <h1 className="mb-4 text-6xl font-bold text-foreground">
-            🎵 Soundboard
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            Ofis eğlencesi için ses efektleri - Butona tıkla ve eğlen!
-          </p>
+        <header className="mb-12">
+          <div className="flex items-center justify-between mb-8">
+            <Button
+              variant="ghost"
+              onClick={handleBackToProfiles}
+              className="gap-2"
+            >
+              <ArrowLeft size={20} />
+              Profiller
+            </Button>
+            <div className="text-lg text-muted-foreground">
+              {currentProfile?.name}
+            </div>
+          </div>
+          <div className="text-center">
+            <h1 className="mb-4 text-6xl font-bold text-foreground">
+              🎵 Soundboard
+            </h1>
+            <p className="text-xl text-muted-foreground">
+              Ofis eğlencesi için ses efektleri - Butona tıkla ve eğlen!
+            </p>
+          </div>
         </header>
 
         {!isYouTubeReady ? (
