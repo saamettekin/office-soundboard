@@ -1,4 +1,4 @@
-import { Plus, User, Trash2 } from "lucide-react";
+import { Plus, User, Trash2, Pencil } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import {
@@ -31,6 +31,7 @@ interface ProfileSelectionProps {
   onSelectProfile: (profileId: string) => void;
   onAddProfile: (name: string, avatar: string) => void;
   onDeleteProfile: (profileId: string) => void;
+  onEditProfile: (profileId: string, name: string, avatar: string) => void;
 }
 
 export const ProfileSelection = ({
@@ -38,11 +39,15 @@ export const ProfileSelection = ({
   onSelectProfile,
   onAddProfile,
   onDeleteProfile,
+  onEditProfile,
 }: ProfileSelectionProps) => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newProfileName, setNewProfileName] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState("👤");
   const [deleteProfileId, setDeleteProfileId] = useState<string | null>(null);
+  const [editProfileId, setEditProfileId] = useState<string | null>(null);
+  const [editProfileName, setEditProfileName] = useState("");
+  const [editProfileAvatar, setEditProfileAvatar] = useState("👤");
 
   const handleAddProfile = () => {
     if (newProfileName.trim()) {
@@ -57,6 +62,21 @@ export const ProfileSelection = ({
     if (deleteProfileId) {
       onDeleteProfile(deleteProfileId);
       setDeleteProfileId(null);
+    }
+  };
+
+  const handleOpenEdit = (profile: Profile) => {
+    setEditProfileId(profile.id);
+    setEditProfileName(profile.name);
+    setEditProfileAvatar(profile.avatar);
+  };
+
+  const handleEditConfirm = () => {
+    if (editProfileId && editProfileName.trim()) {
+      onEditProfile(editProfileId, editProfileName.trim(), editProfileAvatar);
+      setEditProfileId(null);
+      setEditProfileName("");
+      setEditProfileAvatar("👤");
     }
   };
 
@@ -97,17 +117,28 @@ export const ProfileSelection = ({
                 {profile.name}
               </span>
             </button>
-            {profiles.length > 1 && (
+            <div className="absolute top-0 right-0 flex gap-1">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setDeleteProfileId(profile.id);
+                  handleOpenEdit(profile);
                 }}
-                className="absolute top-0 right-0 p-2 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:scale-110"
+                className="p-2 bg-primary text-primary-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:scale-110"
               >
-                <Trash2 size={16} />
+                <Pencil size={16} />
               </button>
-            )}
+              {profiles.length > 1 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteProfileId(profile.id);
+                  }}
+                  className="p-2 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:scale-110"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
           </div>
         ))}
 
@@ -180,6 +211,67 @@ export const ProfileSelection = ({
             
             <Button onClick={handleAddProfile} className="w-full">
               Profil Oluştur
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editProfileId} onOpenChange={() => setEditProfileId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Profili Düzenle</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="editProfileName">Profil Adı</Label>
+              <Input
+                id="editProfileName"
+                value={editProfileName}
+                onChange={(e) => setEditProfileName(e.target.value)}
+                placeholder="İsim girin..."
+                onKeyDown={(e) => e.key === "Enter" && handleEditConfirm()}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Avatar Seç</Label>
+              <div className="flex flex-wrap gap-2">
+                {avatarEmojis.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => setEditProfileAvatar(emoji)}
+                    className={`w-12 h-12 text-2xl rounded-lg transition-all ${
+                      editProfileAvatar === emoji
+                        ? "ring-2 ring-primary scale-110"
+                        : "hover:scale-105 bg-muted"
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+              
+              <Label className="mt-4 block">veya Renk Seç</Label>
+              <div className="flex flex-wrap gap-2">
+                {avatarColors.map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => setEditProfileAvatar(color)}
+                    className={`w-12 h-12 rounded-lg transition-all flex items-center justify-center ${
+                      editProfileAvatar === color
+                        ? "ring-2 ring-primary scale-110"
+                        : "hover:scale-105"
+                    }`}
+                    style={{ backgroundColor: color }}
+                  >
+                    {editProfileAvatar === color && <User size={24} className="text-white" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <Button onClick={handleEditConfirm} className="w-full">
+              Kaydet
             </Button>
           </div>
         </DialogContent>

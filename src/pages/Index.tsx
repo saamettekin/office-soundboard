@@ -152,6 +152,12 @@ const Index = () => {
       setCurrentProfileId(null);
     }
   };
+
+  const handleEditProfile = (profileId: string, name: string, avatar: string) => {
+    setProfiles(profiles.map(p => 
+      p.id === profileId ? { ...p, name, avatar } : p
+    ));
+  };
   
   const handleBackToProfiles = () => {
     setCurrentProfileId(null);
@@ -225,6 +231,7 @@ const Index = () => {
         onSelectProfile={handleSelectProfile}
         onAddProfile={handleAddProfile}
         onDeleteProfile={handleDeleteProfile}
+        onEditProfile={handleEditProfile}
       />
     );
   }
