@@ -1,4 +1,4 @@
-import { Plus, User } from "lucide-react";
+import { Plus, User, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import {
@@ -7,6 +7,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
@@ -19,34 +29,47 @@ export interface Profile {
 interface ProfileSelectionProps {
   profiles: Profile[];
   onSelectProfile: (profileId: string) => void;
-  onAddProfile: (name: string) => void;
+  onAddProfile: (name: string, avatar: string) => void;
+  onDeleteProfile: (profileId: string) => void;
 }
 
 export const ProfileSelection = ({
   profiles,
   onSelectProfile,
   onAddProfile,
+  onDeleteProfile,
 }: ProfileSelectionProps) => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newProfileName, setNewProfileName] = useState("");
+  const [selectedAvatar, setSelectedAvatar] = useState("👤");
+  const [deleteProfileId, setDeleteProfileId] = useState<string | null>(null);
 
   const handleAddProfile = () => {
     if (newProfileName.trim()) {
-      onAddProfile(newProfileName.trim());
+      onAddProfile(newProfileName.trim(), selectedAvatar);
       setNewProfileName("");
+      setSelectedAvatar("👤");
       setIsAddDialogOpen(false);
     }
   };
 
+  const handleDeleteConfirm = () => {
+    if (deleteProfileId) {
+      onDeleteProfile(deleteProfileId);
+      setDeleteProfileId(null);
+    }
+  };
+
+  const avatarEmojis = ["👤", "😀", "😎", "🎭", "🎮", "🎵", "⭐", "🚀", "🔥", "💎", "🎨", "🌟"];
   const avatarColors = [
-    "bg-red-500",
-    "bg-blue-500",
-    "bg-green-500",
-    "bg-yellow-500",
-    "bg-purple-500",
-    "bg-pink-500",
-    "bg-orange-500",
-    "bg-teal-500",
+    "hsl(0, 84%, 60%)",
+    "hsl(221, 83%, 53%)",
+    "hsl(142, 71%, 45%)",
+    "hsl(48, 96%, 53%)",
+    "hsl(271, 91%, 65%)",
+    "hsl(330, 81%, 60%)",
+    "hsl(24, 95%, 53%)",
+    "hsl(173, 80%, 40%)",
   ];
 
   return (
@@ -56,23 +79,36 @@ export const ProfileSelection = ({
       </h1>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 max-w-4xl">
-        {profiles.map((profile, index) => (
-          <button
-            key={profile.id}
-            onClick={() => onSelectProfile(profile.id)}
-            className="flex flex-col items-center gap-3 group transition-transform hover:scale-105"
-          >
-            <div
-              className={`w-32 h-32 rounded-lg ${
-                avatarColors[index % avatarColors.length]
-              } flex items-center justify-center text-white text-4xl font-bold shadow-lg group-hover:shadow-xl transition-shadow`}
+        {profiles.map((profile) => (
+          <div key={profile.id} className="relative group">
+            <button
+              onClick={() => onSelectProfile(profile.id)}
+              className="flex flex-col items-center gap-3 transition-transform hover:scale-105 w-full"
             >
-              <User size={64} />
-            </div>
-            <span className="text-lg text-muted-foreground group-hover:text-foreground transition-colors">
-              {profile.name}
-            </span>
-          </button>
+              <div
+                className="w-32 h-32 rounded-lg flex items-center justify-center text-6xl font-bold shadow-lg group-hover:shadow-xl transition-shadow"
+                style={{ 
+                  backgroundColor: profile.avatar.startsWith("hsl") ? profile.avatar : "hsl(var(--primary))",
+                }}
+              >
+                {profile.avatar.startsWith("hsl") ? <User size={64} className="text-white" /> : profile.avatar}
+              </div>
+              <span className="text-lg text-muted-foreground group-hover:text-foreground transition-colors">
+                {profile.name}
+              </span>
+            </button>
+            {profiles.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteProfileId(profile.id);
+                }}
+                className="absolute top-0 right-0 p-2 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:scale-110"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
         ))}
 
         <button
@@ -104,12 +140,67 @@ export const ProfileSelection = ({
                 onKeyDown={(e) => e.key === "Enter" && handleAddProfile()}
               />
             </div>
+            
+            <div className="space-y-2">
+              <Label>Avatar Seç</Label>
+              <div className="flex flex-wrap gap-2">
+                {avatarEmojis.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => setSelectedAvatar(emoji)}
+                    className={`w-12 h-12 text-2xl rounded-lg transition-all ${
+                      selectedAvatar === emoji
+                        ? "ring-2 ring-primary scale-110"
+                        : "hover:scale-105 bg-muted"
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+              
+              <Label className="mt-4 block">veya Renk Seç</Label>
+              <div className="flex flex-wrap gap-2">
+                {avatarColors.map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => setSelectedAvatar(color)}
+                    className={`w-12 h-12 rounded-lg transition-all flex items-center justify-center ${
+                      selectedAvatar === color
+                        ? "ring-2 ring-primary scale-110"
+                        : "hover:scale-105"
+                    }`}
+                    style={{ backgroundColor: color }}
+                  >
+                    {selectedAvatar === color && <User size={24} className="text-white" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
             <Button onClick={handleAddProfile} className="w-full">
               Profil Oluştur
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteProfileId} onOpenChange={() => setDeleteProfileId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Profili Sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bu profili silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve tüm ses efektleri silinecektir.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -128,17 +128,29 @@ const Index = () => {
     setCurrentProfileId(profileId);
   };
   
-  const handleAddProfile = (name: string) => {
+  const handleAddProfile = (name: string, avatar: string) => {
     const newProfile: Profile = {
       id: Date.now().toString(),
       name,
-      avatar: "👤"
+      avatar
     };
     setProfiles([...profiles, newProfile]);
     setProfileSounds(prev => ({
       ...prev,
       [newProfile.id]: []
     }));
+  };
+
+  const handleDeleteProfile = (profileId: string) => {
+    setProfiles(profiles.filter(p => p.id !== profileId));
+    setProfileSounds(prev => {
+      const updated = { ...prev };
+      delete updated[profileId];
+      return updated;
+    });
+    if (currentProfileId === profileId) {
+      setCurrentProfileId(null);
+    }
   };
   
   const handleBackToProfiles = () => {
@@ -212,6 +224,7 @@ const Index = () => {
         profiles={profiles}
         onSelectProfile={handleSelectProfile}
         onAddProfile={handleAddProfile}
+        onDeleteProfile={handleDeleteProfile}
       />
     );
   }
