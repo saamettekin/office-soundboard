@@ -14,7 +14,7 @@ const formSchema = z.object({
   title: z.string().min(1, "Ses adı gerekli").max(50, "Ses adı çok uzun"),
   youtubeUrl: z.string().min(1, "YouTube linki gerekli").refine(
     (url) => {
-      const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+      const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
       return youtubeRegex.test(url);
     },
     { message: "Geçerli bir YouTube linki girin" }
@@ -41,7 +41,7 @@ const AddSoundForm = ({ onAddSound }: AddSoundFormProps) => {
   });
 
   const extractVideoId = (url: string): string => {
-    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    const match = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
     return match ? match[1] : "";
   };
 
