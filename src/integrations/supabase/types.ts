@@ -38,6 +38,119 @@ export type Database = {
         }
         Relationships: []
       }
+      queue_songs: {
+        Row: {
+          added_at: string
+          added_by_name: string
+          added_by_user_id: string
+          album_cover_url: string | null
+          artist: string
+          created_at: string
+          duration_ms: number
+          id: string
+          is_playing: boolean
+          position: number
+          spotify_song_id: string
+          title: string
+        }
+        Insert: {
+          added_at?: string
+          added_by_name: string
+          added_by_user_id: string
+          album_cover_url?: string | null
+          artist: string
+          created_at?: string
+          duration_ms: number
+          id?: string
+          is_playing?: boolean
+          position: number
+          spotify_song_id: string
+          title: string
+        }
+        Update: {
+          added_at?: string
+          added_by_name?: string
+          added_by_user_id?: string
+          album_cover_url?: string | null
+          artist?: string
+          created_at?: string
+          duration_ms?: number
+          id?: string
+          is_playing?: boolean
+          position?: number
+          spotify_song_id?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      song_history: {
+        Row: {
+          added_by_name: string
+          added_by_user_id: string
+          album_cover_url: string | null
+          artist: string
+          id: string
+          played_at: string
+          spotify_song_id: string
+          title: string
+        }
+        Insert: {
+          added_by_name: string
+          added_by_user_id: string
+          album_cover_url?: string | null
+          artist: string
+          id?: string
+          played_at?: string
+          spotify_song_id: string
+          title: string
+        }
+        Update: {
+          added_by_name?: string
+          added_by_user_id?: string
+          album_cover_url?: string | null
+          artist?: string
+          id?: string
+          played_at?: string
+          spotify_song_id?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      song_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          song_id: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          song_id: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          song_id?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "song_reactions_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "queue_songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
