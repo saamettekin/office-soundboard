@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { useYouTubeAPI } from "@/hooks/useYouTubeAPI";
 import SoundButton from "@/components/SoundButton";
 import AddSoundForm from "@/components/AddSoundForm";
@@ -50,7 +52,9 @@ const PROFILE_SOUNDS_KEY = "soundboard-profile-sounds";
 const CURRENT_PROFILE_KEY = "soundboard-current-profile";
 
 const Index = () => {
+  const navigate = useNavigate();
   const isYouTubeReady = useYouTubeAPI();
+  const [authChecked, setAuthChecked] = useState(false);
   const [showSplash, setShowSplash] = useState(() => {
     return !localStorage.getItem(CURRENT_PROFILE_KEY);
   });
@@ -111,6 +115,18 @@ const Index = () => {
   );
 
   useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+      setAuthChecked(true);
+    };
+    checkAuth();
+  }, [navigate]);
+
+  useEffect(() => {
     localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
   }, [profiles]);
   
@@ -161,6 +177,10 @@ const Index = () => {
   
   const handleBackToProfiles = () => {
     setCurrentProfileId(null);
+  };
+
+  const handleBackToMenu = () => {
+    navigate("/menu");
   };
 
   const handleAddSound = (title: string, videoId: string, category: string) => {
@@ -220,6 +240,14 @@ const Index = () => {
     ));
   };
 
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-gradient-bg flex items-center justify-center">
+        <p className="text-lg text-muted-foreground">Yükleniyor...</p>
+      </div>
+    );
+  }
+
   if (showSplash) {
     return <SplashScreen onFinish={() => setShowSplash(false)} />;
   }
@@ -243,14 +271,23 @@ const Index = () => {
       <div className="mx-auto max-w-5xl">
         <header className="mb-12">
           <div className="flex items-center justify-between mb-8">
-            <Button
-              variant="ghost"
-              onClick={handleBackToProfiles}
-              className="gap-2"
-            >
-              <ArrowLeft size={20} />
-              Profiller
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                onClick={handleBackToMenu}
+                className="gap-2"
+              >
+                <ArrowLeft size={20} />
+                Ana Menü
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={handleBackToProfiles}
+                className="gap-2"
+              >
+                Profiller
+              </Button>
+            </div>
             <div className="text-lg text-muted-foreground">
               {currentProfile?.name}
             </div>
