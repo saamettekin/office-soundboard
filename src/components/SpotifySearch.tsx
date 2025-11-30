@@ -15,7 +15,7 @@ interface SpotifySearchProps {
 }
 
 export const SpotifySearch = ({ onAddToQueue }: SpotifySearchProps) => {
-  const { searchQuery, results, searching, search } = useSpotifySearch();
+  const { searchQuery, results, searching, search, error } = useSpotifySearch();
 
   return (
     <div className="w-full space-y-4">
@@ -28,6 +28,12 @@ export const SpotifySearch = ({ onAddToQueue }: SpotifySearchProps) => {
           className="pl-10 h-12 text-base"
         />
       </div>
+
+      {error && (
+        <p className="text-sm text-destructive text-center py-4">
+          {error}
+        </p>
+      )}
 
       {searching && (
         <p className="text-sm text-muted-foreground text-center py-4">
