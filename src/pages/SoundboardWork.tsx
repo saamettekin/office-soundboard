@@ -13,6 +13,8 @@ import { SongHistory } from "@/components/SongHistory";
 const SoundboardWork = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
+  const { queue, currentSong, loading: queueLoading, addToQueue, removeFromQueue, playNextSong } = useMusicQueue();
 
   useEffect(() => {
     checkAuth();
@@ -26,17 +28,6 @@ const SoundboardWork = () => {
     }
     setLoading(false);
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-bg flex items-center justify-center">
-        <p className="text-lg text-muted-foreground">Yükleniyor...</p>
-      </div>
-    );
-  }
-
-  const { queue, currentSong, loading: queueLoading, addToQueue, removeFromQueue, playNextSong } = useMusicQueue();
-  const [showHistory, setShowHistory] = useState(false);
 
   if (loading || queueLoading) {
     return (
