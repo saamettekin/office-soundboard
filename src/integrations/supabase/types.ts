@@ -52,6 +52,7 @@ export type Database = {
           position: number
           spotify_song_id: string
           title: string
+          youtube_video_id: string | null
         }
         Insert: {
           added_at?: string
@@ -66,6 +67,7 @@ export type Database = {
           position: number
           spotify_song_id: string
           title: string
+          youtube_video_id?: string | null
         }
         Update: {
           added_at?: string
@@ -80,6 +82,7 @@ export type Database = {
           position?: number
           spotify_song_id?: string
           title?: string
+          youtube_video_id?: string | null
         }
         Relationships: []
       }
