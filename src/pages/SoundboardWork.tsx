@@ -5,16 +5,28 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMusicQueue } from "@/hooks/useMusicQueue";
+import { useSpotifyPlayer } from "@/hooks/useSpotifyPlayer";
 import { SpotifySearch } from "@/components/SpotifySearch";
 import { MusicQueue } from "@/components/MusicQueue";
 import { NowPlayingPlayer } from "@/components/NowPlayingPlayer";
 import { SongHistory } from "@/components/SongHistory";
+import { toast } from "sonner";
 
 const SoundboardWork = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   const { queue, currentSong, loading: queueLoading, addToQueue, removeFromQueue, playNextSong } = useMusicQueue();
+  const { isConnected, connectToSpotify, play, pause, resume, isPaused, isReady } = useSpotifyPlayer();
+
+  // Check for Spotify connection callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('spotify') === 'connected') {
+      toast.success('Spotify bağlantısı başarılı!');
+      window.history.replaceState({}, '', '/soundboard-work');
+    }
+  }, []);
 
   useEffect(() => {
     checkAuth();
@@ -58,6 +70,25 @@ const SoundboardWork = () => {
             </p>
           </div>
 
+          {/* Spotify Connection Status */}
+          <div className="flex justify-center items-center gap-4 mb-4">
+            {!isConnected && (
+              <Button onClick={connectToSpotify} variant="default" size="lg">
+                Spotify'a Bağlan
+              </Button>
+            )}
+            {isConnected && !isReady && (
+              <div className="text-sm text-muted-foreground">
+                Spotify player hazırlanıyor...
+              </div>
+            )}
+            {isConnected && isReady && (
+              <div className="text-sm text-green-600 font-medium">
+                ✓ Spotify bağlı ve hazır
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-3 justify-center">
             <Button
               variant={showHistory ? "outline" : "default"}
@@ -98,7 +129,11 @@ const SoundboardWork = () => {
         )}
       </div>
 
-      <NowPlayingPlayer currentSong={currentSong} onNext={playNextSong} />
+      <NowPlayingPlayer 
+        currentSong={currentSong} 
+        onNext={playNextSong}
+        spotifyPlayer={{ play, pause, resume, isPaused, isReady, isConnected }}
+      />
     </div>
   );
 };
