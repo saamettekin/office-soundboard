@@ -5,6 +5,8 @@ declare namespace YT {
     stopVideo(): void;
     seekTo(seconds: number, allowSeekAhead: boolean): void;
     getPlayerState(): number;
+    getCurrentTime(): number;
+    getDuration(): number;
     destroy(): void;
   }
 

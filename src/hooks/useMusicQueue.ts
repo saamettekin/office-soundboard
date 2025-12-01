@@ -14,6 +14,7 @@ export interface QueueSong {
   added_at: string;
   position: number;
   is_playing: boolean;
+  youtube_video_id: string | null;
 }
 
 export const useMusicQueue = () => {
