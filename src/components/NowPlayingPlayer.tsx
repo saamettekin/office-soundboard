@@ -7,12 +7,22 @@ import { useEffect, useState, useRef } from "react";
 import { useYouTubeAPI } from "@/hooks/useYouTubeAPI";
 import { Slider } from "@/components/ui/slider";
 
+interface SpotifyPlayer {
+  play: (uri: string) => void;
+  pause: () => void;
+  resume: () => void;
+  isPaused: boolean;
+  isReady: boolean;
+  isConnected: boolean;
+}
+
 interface NowPlayingPlayerProps {
   currentSong: QueueSong | null;
   onNext: () => void;
+  spotifyPlayer?: SpotifyPlayer;
 }
 
-export const NowPlayingPlayer = ({ currentSong, onNext }: NowPlayingPlayerProps) => {
+export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlayingPlayerProps) => {
   const [progress, setProgress] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
@@ -22,7 +32,19 @@ export const NowPlayingPlayer = ({ currentSong, onNext }: NowPlayingPlayerProps)
   const isYouTubeReady = useYouTubeAPI();
   const progressIntervalRef = useRef<number | null>(null);
 
+  // Play song based on available player (Spotify or YouTube)
   useEffect(() => {
+    if (!currentSong) return;
+
+    // Try Spotify first if connected and ready
+    if (spotifyPlayer?.isConnected && spotifyPlayer?.isReady && currentSong.spotify_song_id) {
+      const spotifyUri = `spotify:track:${currentSong.spotify_song_id}`;
+      spotifyPlayer.play(spotifyUri);
+      setIsPlaying(true);
+      return;
+    }
+
+    // Fallback to YouTube if no Spotify or no YouTube video ID
     if (!currentSong?.youtube_video_id || !isYouTubeReady || !playerContainerRef.current) return;
 
     // Clear any existing player
@@ -91,7 +113,7 @@ export const NowPlayingPlayer = ({ currentSong, onNext }: NowPlayingPlayerProps)
       }
       setProgress(0);
     };
-  }, [currentSong?.id, isYouTubeReady]);
+  }, [currentSong?.id, isYouTubeReady, spotifyPlayer]);
 
   const startProgressTracking = () => {
     if (progressIntervalRef.current) {
@@ -115,6 +137,17 @@ export const NowPlayingPlayer = ({ currentSong, onNext }: NowPlayingPlayerProps)
   };
 
   const togglePlayPause = () => {
+    // Use Spotify player if available and connected
+    if (spotifyPlayer?.isConnected && spotifyPlayer?.isReady) {
+      if (spotifyPlayer.isPaused) {
+        spotifyPlayer.resume();
+      } else {
+        spotifyPlayer.pause();
+      }
+      return;
+    }
+
+    // Fallback to YouTube
     if (!playerRef.current) return;
     
     try {
