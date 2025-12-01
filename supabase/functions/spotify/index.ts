@@ -83,6 +83,49 @@ serve(async (req) => {
       );
     }
 
+    // Search YouTube for a song
+    if (path === 'youtube') {
+      const { artist, title } = await req.json();
+      
+      if (!artist || !title) {
+        return new Response(
+          JSON.stringify({ error: 'Artist and title are required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const searchQuery = `${artist} - ${title}`;
+      
+      try {
+        // Use Invidious API (no API key needed)
+        const invidiousResponse = await fetch(
+          `https://invidious.jing.rocks/api/v1/search?q=${encodeURIComponent(searchQuery)}&type=video`,
+          { headers: { 'User-Agent': 'Mozilla/5.0' } }
+        );
+        
+        if (!invidiousResponse.ok) {
+          throw new Error('Invidious API failed');
+        }
+        
+        const results = await invidiousResponse.json();
+        
+        if (results && results.length > 0) {
+          return new Response(
+            JSON.stringify({ youtube_video_id: results[0].videoId }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        throw new Error('No YouTube video found');
+      } catch (error) {
+        console.error('YouTube search error:', error);
+        return new Response(
+          JSON.stringify({ error: 'Failed to find YouTube video' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     return new Response(
       JSON.stringify({ error: 'Invalid endpoint' }),
       { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

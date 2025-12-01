@@ -88,6 +88,20 @@ export const useMusicQueue = () => {
 
     if (!user) return;
 
+    // Get YouTube video ID
+    let youtubeVideoId = null;
+    try {
+      const { data: youtubeData, error: youtubeError } = await supabase.functions.invoke('spotify/youtube', {
+        body: { artist: song.artist, title: song.title }
+      });
+
+      if (!youtubeError && youtubeData?.youtube_video_id) {
+        youtubeVideoId = youtubeData.youtube_video_id;
+      }
+    } catch (error) {
+      console.error('Error fetching YouTube video:', error);
+    }
+
     const maxPosition = queue.length > 0 
       ? Math.max(...queue.map(s => s.position))
       : 0;
@@ -98,6 +112,7 @@ export const useMusicQueue = () => {
       artist: song.artist,
       album_cover_url: song.album_cover_url,
       duration_ms: song.duration_ms,
+      youtube_video_id: youtubeVideoId,
       added_by_user_id: user.id,
       added_by_name: profile?.email?.split("@")[0] || "Unknown",
       position: maxPosition + 1,
@@ -109,6 +124,11 @@ export const useMusicQueue = () => {
         title: "Hata",
         description: "Şarkı eklenirken bir hata oluştu",
         variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Şarkı eklendi! 🎵",
+        description: `${song.title} sıraya eklendi`,
       });
     }
   };
