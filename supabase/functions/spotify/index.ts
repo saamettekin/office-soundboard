@@ -94,36 +94,55 @@ serve(async (req) => {
         );
       }
 
-      const searchQuery = `${artist} - ${title}`;
+      const searchQuery = `${artist} - ${title} official`;
       
-      try {
-        // Use Invidious API (no API key needed)
-        const invidiousResponse = await fetch(
-          `https://invidious.jing.rocks/api/v1/search?q=${encodeURIComponent(searchQuery)}&type=video`,
-          { headers: { 'User-Agent': 'Mozilla/5.0' } }
-        );
-        
-        if (!invidiousResponse.ok) {
-          throw new Error('Invidious API failed');
-        }
-        
-        const results = await invidiousResponse.json();
-        
-        if (results && results.length > 0) {
-          return new Response(
-            JSON.stringify({ youtube_video_id: results[0].videoId }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      // List of Invidious instances to try
+      const invidiousInstances = [
+        'https://inv.nadeko.net',
+        'https://invidious.nerdvpn.de',
+        'https://invidious.privacyredirect.com',
+        'https://vid.puffyan.us',
+        'https://invidious.projectsegfau.lt'
+      ];
+
+      for (const instance of invidiousInstances) {
+        try {
+          console.log(`Trying Invidious instance: ${instance}`);
+          
+          const invidiousResponse = await fetch(
+            `${instance}/api/v1/search?q=${encodeURIComponent(searchQuery)}&type=video`,
+            { 
+              headers: { 'User-Agent': 'Mozilla/5.0' },
+              signal: AbortSignal.timeout(5000) // 5 second timeout
+            }
           );
+          
+          if (!invidiousResponse.ok) {
+            console.log(`Instance ${instance} returned ${invidiousResponse.status}`);
+            continue;
+          }
+          
+          const results = await invidiousResponse.json();
+          
+          if (results && results.length > 0) {
+            console.log(`Found video: ${results[0].videoId} from ${instance}`);
+            return new Response(
+              JSON.stringify({ youtube_video_id: results[0].videoId }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        } catch (error) {
+          console.error(`Error with instance ${instance}:`, error);
+          continue;
         }
-        
-        throw new Error('No YouTube video found');
-      } catch (error) {
-        console.error('YouTube search error:', error);
-        return new Response(
-          JSON.stringify({ error: 'Failed to find YouTube video' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
       }
+      
+      // If all instances fail, return success with null (song can still be added)
+      console.log('All Invidious instances failed, returning null');
+      return new Response(
+        JSON.stringify({ youtube_video_id: null }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     return new Response(
