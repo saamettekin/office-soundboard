@@ -180,8 +180,8 @@ serve(async (req) => {
       });
     }
 
-    // GET /token - Get current token (refresh if needed)
-    if (path === 'token' && req.method === 'GET') {
+    // GET or POST /token - Get current token (refresh if needed)
+    if (path === 'token' && (req.method === 'GET' || req.method === 'POST')) {
       const { data: profile } = await supabaseClient
         .from('profiles')
         .select('spotify_access_token, spotify_refresh_token, spotify_token_expires_at')
