@@ -15,7 +15,85 @@ serve(async (req) => {
     const url = new URL(req.url);
     const path = url.pathname.split('/').pop();
 
-    // Get authorization header (case-insensitive)
+    const SPOTIFY_CLIENT_ID = Deno.env.get('SPOTIFY_CLIENT_ID');
+    const SPOTIFY_CLIENT_SECRET = Deno.env.get('SPOTIFY_CLIENT_SECRET');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
+    const REDIRECT_URI = `${SUPABASE_URL}/functions/v1/spotify-auth/callback`;
+
+    if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
+      throw new Error('Spotify credentials not configured');
+    }
+
+    // Initialize Supabase client with service role for admin operations
+    const supabaseClient = createClient(
+      SUPABASE_URL,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
+
+    // GET /callback - OAuth callback (no auth required - comes from Spotify redirect)
+    if (path === 'callback' && req.method === 'GET') {
+      const code = url.searchParams.get('code');
+      const state = url.searchParams.get('state'); // This is the user_id
+      const error = url.searchParams.get('error');
+
+      if (error) {
+        console.error('Spotify OAuth error:', error);
+        return Response.redirect(`${req.headers.get('origin') || 'https://office-soundboard.lovable.app'}/soundboard-work?spotify=error`, 302);
+      }
+
+      if (!code || !state) {
+        console.error('Missing code or state in callback');
+        return Response.redirect(`${req.headers.get('origin') || 'https://office-soundboard.lovable.app'}/soundboard-work?spotify=error`, 302);
+      }
+
+      console.log('Processing callback for user:', state);
+
+      // Exchange code for tokens
+      const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)
+        },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: REDIRECT_URI
+        })
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        console.error('Failed to exchange code for tokens:', errorText);
+        return Response.redirect(`https://office-soundboard.lovable.app/soundboard-work?spotify=error`, 302);
+      }
+
+      const tokens = await tokenResponse.json();
+      console.log('Got tokens from Spotify');
+
+      // Store tokens in user profile using state (user_id)
+      const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
+      const { error: updateError } = await supabaseClient
+        .from('profiles')
+        .update({
+          spotify_access_token: tokens.access_token,
+          spotify_refresh_token: tokens.refresh_token,
+          spotify_token_expires_at: expiresAt.toISOString()
+        })
+        .eq('user_id', state);
+
+      if (updateError) {
+        console.error('Error storing tokens:', updateError);
+        return Response.redirect(`https://office-soundboard.lovable.app/soundboard-work?spotify=error`, 302);
+      }
+
+      console.log('Tokens stored successfully for user:', state);
+      
+      // Redirect back to app
+      return Response.redirect(`https://office-soundboard.lovable.app/soundboard-work?spotify=connected`, 302);
+    }
+
+    // All other endpoints require authentication
     const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
     
     if (!authHeader) {
@@ -25,12 +103,6 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    // Initialize Supabase client with service role for admin operations
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
 
     // Get user from JWT token
     const token = authHeader.replace('Bearer ', '');
@@ -54,16 +126,8 @@ serve(async (req) => {
     
     console.log('Authenticated user:', user.id);
 
-    const SPOTIFY_CLIENT_ID = Deno.env.get('SPOTIFY_CLIENT_ID');
-    const SPOTIFY_CLIENT_SECRET = Deno.env.get('SPOTIFY_CLIENT_SECRET');
-    const REDIRECT_URI = `${Deno.env.get('SUPABASE_URL')}/functions/v1/spotify-auth/callback`;
-
-    if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
-      throw new Error('Spotify credentials not configured');
-    }
-
-    // GET /authorize - Start OAuth flow
-    if (path === 'authorize' && req.method === 'GET') {
+    // GET or POST /authorize - Start OAuth flow
+    if (path === 'authorize' && (req.method === 'GET' || req.method === 'POST')) {
       const scopes = [
         'streaming',
         'user-read-email',
@@ -79,59 +143,11 @@ serve(async (req) => {
         `scope=${encodeURIComponent(scopes)}&` +
         `state=${user.id}`;
 
+      console.log('Generated auth URL for user:', user.id);
+
       return new Response(JSON.stringify({ authUrl }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-    }
-
-    // GET /callback - OAuth callback
-    if (path === 'callback' && req.method === 'GET') {
-      const code = url.searchParams.get('code');
-      const state = url.searchParams.get('state');
-
-      if (!code || state !== user.id) {
-        throw new Error('Invalid callback parameters');
-      }
-
-      // Exchange code for tokens
-      const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': 'Basic ' + btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)
-        },
-        body: new URLSearchParams({
-          grant_type: 'authorization_code',
-          code,
-          redirect_uri: REDIRECT_URI
-        })
-      });
-
-      if (!tokenResponse.ok) {
-        throw new Error('Failed to exchange code for tokens');
-      }
-
-      const tokens = await tokenResponse.json();
-
-      // Store tokens in user profile
-      const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
-      const { error: updateError } = await supabaseClient
-        .from('profiles')
-        .update({
-          spotify_access_token: tokens.access_token,
-          spotify_refresh_token: tokens.refresh_token,
-          spotify_token_expires_at: expiresAt.toISOString()
-        })
-        .eq('user_id', user.id);
-
-      if (updateError) {
-        console.error('Error storing tokens:', updateError);
-        throw updateError;
-      }
-
-      // Redirect back to app
-      const appUrl = Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovableproject.com') || '';
-      return Response.redirect(`${appUrl}/soundboard-work?spotify=connected`, 302);
     }
 
     // POST /refresh - Refresh access token
