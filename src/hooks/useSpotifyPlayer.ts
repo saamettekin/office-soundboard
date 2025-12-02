@@ -9,7 +9,7 @@ declare global {
   }
 }
 
-export const useSpotifyPlayer = () => {
+export const useSpotifyPlayer = (enabled: boolean = true) => {
   const [player, setPlayer] = useState<any>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
@@ -19,22 +19,27 @@ export const useSpotifyPlayer = () => {
   const [isConnected, setIsConnected] = useState(false);
   const playerRef = useRef<any>(null);
 
-  // Load Spotify SDK
+  // Load Spotify SDK only when enabled
   useEffect(() => {
+    if (!enabled) return;
+    
     const script = document.createElement('script');
     script.src = 'https://sdk.scdn.co/spotify-player.js';
     script.async = true;
     document.body.appendChild(script);
 
     return () => {
-      document.body.removeChild(script);
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
     };
-  }, []);
+  }, [enabled]);
 
-  // Check if user is connected to Spotify
+  // Check if user is connected to Spotify only when enabled
   useEffect(() => {
+    if (!enabled) return;
     checkSpotifyConnection();
-  }, []);
+  }, [enabled]);
 
   const checkSpotifyConnection = async () => {
     try {
