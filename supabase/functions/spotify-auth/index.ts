@@ -36,14 +36,63 @@ serve(async (req) => {
       const state = url.searchParams.get('state'); // This is the user_id
       const error = url.searchParams.get('error');
 
+      // HTML template for popup response
+      const createPopupResponse = (success: boolean, message: string) => {
+        const html = `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Spotify Bağlantısı</title>
+              <style>
+                body {
+                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  height: 100vh;
+                  margin: 0;
+                  background: linear-gradient(135deg, #1DB954 0%, #191414 100%);
+                  color: white;
+                }
+                .container {
+                  text-align: center;
+                  padding: 40px;
+                  background: rgba(0,0,0,0.5);
+                  border-radius: 16px;
+                  backdrop-filter: blur(10px);
+                }
+                .icon { font-size: 64px; margin-bottom: 16px; }
+                h1 { margin: 0 0 8px 0; font-size: 24px; }
+                p { margin: 0; opacity: 0.8; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="icon">${success ? '✓' : '✗'}</div>
+                <h1>${success ? 'Bağlantı Başarılı!' : 'Bağlantı Hatası'}</h1>
+                <p>${message}</p>
+                <p style="margin-top: 16px; font-size: 14px;">Bu pencere otomatik kapanacak...</p>
+              </div>
+              <script>
+                window.opener?.postMessage({ type: 'SPOTIFY_AUTH_CALLBACK', success: ${success} }, '*');
+                setTimeout(() => window.close(), 2000);
+              </script>
+            </body>
+          </html>
+        `;
+        return new Response(html, {
+          headers: { 'Content-Type': 'text/html' },
+        });
+      };
+
       if (error) {
         console.error('Spotify OAuth error:', error);
-        return Response.redirect(`${req.headers.get('origin') || 'https://office-soundboard.lovable.app'}/soundboard-work?spotify=error`, 302);
+        return createPopupResponse(false, 'Spotify yetkilendirme reddedildi.');
       }
 
       if (!code || !state) {
         console.error('Missing code or state in callback');
-        return Response.redirect(`${req.headers.get('origin') || 'https://office-soundboard.lovable.app'}/soundboard-work?spotify=error`, 302);
+        return createPopupResponse(false, 'Eksik parametreler.');
       }
 
       console.log('Processing callback for user:', state);
@@ -65,7 +114,7 @@ serve(async (req) => {
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
         console.error('Failed to exchange code for tokens:', errorText);
-        return Response.redirect(`https://office-soundboard.lovable.app/soundboard-work?spotify=error`, 302);
+        return createPopupResponse(false, 'Token alınamadı.');
       }
 
       const tokens = await tokenResponse.json();
@@ -84,13 +133,13 @@ serve(async (req) => {
 
       if (updateError) {
         console.error('Error storing tokens:', updateError);
-        return Response.redirect(`https://office-soundboard.lovable.app/soundboard-work?spotify=error`, 302);
+        return createPopupResponse(false, 'Token kaydedilemedi.');
       }
 
       console.log('Tokens stored successfully for user:', state);
       
-      // Redirect back to app
-      return Response.redirect(`https://office-soundboard.lovable.app/soundboard-work?spotify=connected`, 302);
+      // Return success HTML that closes popup and notifies parent
+      return createPopupResponse(true, 'Spotify hesabınız bağlandı!');
     }
 
     // All other endpoints require authentication

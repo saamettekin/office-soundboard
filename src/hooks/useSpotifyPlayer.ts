@@ -148,7 +148,41 @@ export const useSpotifyPlayer = (enabled: boolean = true) => {
       if (error) throw error;
       
       if (data?.authUrl) {
-        window.location.href = data.authUrl;
+        // Open popup window for Spotify auth
+        const width = 500;
+        const height = 700;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+        
+        const popup = window.open(
+          data.authUrl,
+          'spotify-auth',
+          `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+        );
+
+        // Listen for message from popup
+        const handleMessage = (event: MessageEvent) => {
+          if (event.data?.type === 'SPOTIFY_AUTH_CALLBACK') {
+            window.removeEventListener('message', handleMessage);
+            if (event.data.success) {
+              toast.success('Spotify bağlantısı kuruldu!');
+              // Re-check connection to get the token
+              checkSpotifyConnection();
+            } else {
+              toast.error('Spotify bağlantısı başarısız oldu');
+            }
+          }
+        };
+
+        window.addEventListener('message', handleMessage);
+
+        // Clean up if popup is closed without completing auth
+        const checkPopupClosed = setInterval(() => {
+          if (popup?.closed) {
+            clearInterval(checkPopupClosed);
+            window.removeEventListener('message', handleMessage);
+          }
+        }, 1000);
       }
     } catch (error) {
       console.error('Error connecting to Spotify:', error);
