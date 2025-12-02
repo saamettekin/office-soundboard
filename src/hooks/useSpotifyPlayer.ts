@@ -45,14 +45,33 @@ export const useSpotifyPlayer = (enabled: boolean = true) => {
     try {
       const { data, error } = await supabase.functions.invoke('spotify-auth/token');
       
-      if (error) throw error;
+      // Handle "Not connected to Spotify" as a normal state, not an error
+      if (error) {
+        // Check if it's the expected "not connected" response
+        const errorMessage = error?.message || '';
+        if (errorMessage.includes('Not connected') || errorMessage.includes('404')) {
+          console.log('User not connected to Spotify yet');
+          setIsConnected(false);
+          return;
+        }
+        throw error;
+      }
+      
+      // Also check if the response indicates not connected
+      if (data?.error === 'Not connected to Spotify') {
+        console.log('User not connected to Spotify yet');
+        setIsConnected(false);
+        return;
+      }
       
       if (data?.access_token) {
         setAccessToken(data.access_token);
         setIsConnected(true);
+      } else {
+        setIsConnected(false);
       }
     } catch (error) {
-      console.log('Not connected to Spotify:', error);
+      console.log('Error checking Spotify connection:', error);
       setIsConnected(false);
     }
   };
