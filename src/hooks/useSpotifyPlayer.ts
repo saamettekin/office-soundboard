@@ -106,6 +106,9 @@ export const useSpotifyPlayer = (enabled: boolean = true) => {
 
       spotifyPlayer.addListener('playback_error', ({ message }: any) => {
         console.error('Playback error:', message);
+        // Try to recover by reconnecting
+        toast.error('Oynatma hatası - yeniden bağlanıyor...');
+        spotifyPlayer.connect();
       });
 
       // Ready
@@ -282,15 +285,39 @@ export const useSpotifyPlayer = (enabled: boolean = true) => {
     }
   };
 
-  const pause = () => {
+  const pause = async () => {
     if (player) {
-      player.pause();
+      try {
+        await player.pause();
+      } catch (e) {
+        console.error('Error pausing:', e);
+      }
     }
   };
 
-  const resume = () => {
+  const resume = async () => {
     if (player) {
-      player.resume();
+      try {
+        await player.resume();
+      } catch (e) {
+        console.error('Error resuming:', e);
+        // If resume fails, try toggle
+        try {
+          await player.togglePlay();
+        } catch (e2) {
+          console.error('Error toggling play:', e2);
+        }
+      }
+    }
+  };
+
+  const togglePlay = async () => {
+    if (player) {
+      try {
+        await player.togglePlay();
+      } catch (e) {
+        console.error('Error toggling play:', e);
+      }
     }
   };
 
@@ -313,6 +340,7 @@ export const useSpotifyPlayer = (enabled: boolean = true) => {
     play,
     pause,
     resume,
+    togglePlay,
     seek,
     skipForward,
     skipBackward
