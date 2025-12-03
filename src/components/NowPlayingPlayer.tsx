@@ -10,6 +10,7 @@ interface SpotifyPlayer {
   play: (uri: string) => void;
   pause: () => void;
   resume: () => void;
+  togglePlay: () => void;
   seek: (positionMs: number) => void;
   skipBackward: () => void;
   isPaused: boolean;
@@ -164,11 +165,8 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlay
 
   const togglePlayPause = () => {
     if (useSpotify) {
-      if (spotifyPlayer.isPaused) {
-        spotifyPlayer.resume();
-      } else {
-        spotifyPlayer.pause();
-      }
+      // Use togglePlay for most reliable behavior
+      spotifyPlayer.togglePlay();
       return;
     }
 
