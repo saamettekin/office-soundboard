@@ -17,7 +17,11 @@ export const useSpotifyPlayer = (enabled: boolean = true) => {
   const [currentTrack, setCurrentTrack] = useState<any>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [position, setPosition] = useState(0);
+  const [duration, setDuration] = useState(0);
   const playerRef = useRef<any>(null);
+  const currentlyPlayingRef = useRef<string | null>(null);
+  const positionIntervalRef = useRef<number | null>(null);
 
   // Load Spotify SDK only when enabled
   useEffect(() => {
@@ -124,7 +128,20 @@ export const useSpotifyPlayer = (enabled: boolean = true) => {
 
         setCurrentTrack(state.track_window.current_track);
         setIsPaused(state.paused);
+        setPosition(state.position);
+        setDuration(state.duration);
       });
+
+      // Start position tracking interval
+      positionIntervalRef.current = window.setInterval(() => {
+        spotifyPlayer.getCurrentState().then((state: any) => {
+          if (state) {
+            setPosition(state.position);
+            setDuration(state.duration);
+            setIsPaused(state.paused);
+          }
+        });
+      }, 500);
 
       spotifyPlayer.connect().then((success: boolean) => {
         if (success) {
@@ -145,6 +162,9 @@ export const useSpotifyPlayer = (enabled: boolean = true) => {
     }
 
     return () => {
+      if (positionIntervalRef.current) {
+        clearInterval(positionIntervalRef.current);
+      }
       if (playerRef.current) {
         playerRef.current.disconnect();
         playerRef.current = null;
@@ -209,6 +229,14 @@ export const useSpotifyPlayer = (enabled: boolean = true) => {
       return;
     }
 
+    // Prevent duplicate play calls for the same track
+    if (currentlyPlayingRef.current === spotifyUri) {
+      console.log('Already playing this track, skipping...');
+      return;
+    }
+
+    currentlyPlayingRef.current = spotifyUri;
+
     try {
       const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
@@ -222,11 +250,35 @@ export const useSpotifyPlayer = (enabled: boolean = true) => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to play track');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Spotify API error:', response.status, errorData);
+        
+        if (response.status === 429) {
+          toast.error('Çok fazla istek gönderildi, lütfen bekleyin');
+        } else {
+          throw new Error('Failed to play track');
+        }
       }
     } catch (error) {
       console.error('Error playing track:', error);
+      currentlyPlayingRef.current = null;
       toast.error('Şarkı çalınamadı');
+    }
+  };
+
+  const skipForward = () => {
+    if (player) {
+      player.nextTrack();
+    }
+  };
+
+  const skipBackward = () => {
+    if (player && position > 3000) {
+      // If more than 3 seconds in, restart current track
+      player.seek(0);
+    } else if (player) {
+      // Otherwise go to previous track
+      player.previousTrack();
     }
   };
 
@@ -255,10 +307,14 @@ export const useSpotifyPlayer = (enabled: boolean = true) => {
     isPaused,
     currentTrack,
     isConnected,
+    position,
+    duration,
     connectToSpotify,
     play,
     pause,
     resume,
-    seek
+    seek,
+    skipForward,
+    skipBackward
   };
 };

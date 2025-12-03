@@ -2,7 +2,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SkipForward, Music2, Play, Pause, SkipBack } from "lucide-react";
 import { QueueSong } from "@/hooks/useMusicQueue";
-import { Progress } from "@/components/ui/progress";
 import { useEffect, useState, useRef } from "react";
 import { useYouTubeAPI } from "@/hooks/useYouTubeAPI";
 import { Slider } from "@/components/ui/slider";
@@ -11,9 +10,13 @@ interface SpotifyPlayer {
   play: (uri: string) => void;
   pause: () => void;
   resume: () => void;
+  seek: (positionMs: number) => void;
+  skipBackward: () => void;
   isPaused: boolean;
   isReady: boolean;
   isConnected: boolean;
+  position: number;
+  duration: number;
 }
 
 interface NowPlayingPlayerProps {
@@ -23,29 +26,46 @@ interface NowPlayingPlayerProps {
 }
 
 export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlayingPlayerProps) => {
-  const [progress, setProgress] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [ytProgress, setYtProgress] = useState(0);
+  const [ytCurrentTime, setYtCurrentTime] = useState(0);
+  const [ytDuration, setYtDuration] = useState(0);
+  const [ytIsPlaying, setYtIsPlaying] = useState(false);
   const playerRef = useRef<YT.Player | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const isYouTubeReady = useYouTubeAPI();
   const progressIntervalRef = useRef<number | null>(null);
+  const lastPlayedSongRef = useRef<string | null>(null);
+
+  // Determine if using Spotify
+  const useSpotify = spotifyPlayer?.isConnected && spotifyPlayer?.isReady;
+
+  // Calculate display values based on player type
+  const currentTimeMs = useSpotify ? spotifyPlayer.position : ytCurrentTime * 1000;
+  const durationMs = useSpotify ? spotifyPlayer.duration : ytDuration * 1000;
+  const progress = durationMs > 0 ? (currentTimeMs / durationMs) * 100 : 0;
+  const isPlaying = useSpotify ? !spotifyPlayer.isPaused : ytIsPlaying;
 
   // Play song based on available player (Spotify or YouTube)
   useEffect(() => {
     if (!currentSong) return;
 
+    // Prevent duplicate play calls for same song
+    if (lastPlayedSongRef.current === currentSong.id) {
+      return;
+    }
+
     // Try Spotify first if connected and ready
-    if (spotifyPlayer?.isConnected && spotifyPlayer?.isReady && currentSong.spotify_song_id) {
+    if (useSpotify && currentSong.spotify_song_id) {
+      lastPlayedSongRef.current = currentSong.id;
       const spotifyUri = `spotify:track:${currentSong.spotify_song_id}`;
       spotifyPlayer.play(spotifyUri);
-      setIsPlaying(true);
       return;
     }
 
     // Fallback to YouTube if no Spotify or no YouTube video ID
     if (!currentSong?.youtube_video_id || !isYouTubeReady || !playerContainerRef.current) return;
+
+    lastPlayedSongRef.current = currentSong.id;
 
     // Clear any existing player
     if (playerRef.current) {
@@ -75,17 +95,16 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlay
         events: {
           onReady: (event: any) => {
             event.target.playVideo();
-            setIsPlaying(true);
+            setYtIsPlaying(true);
             const videoDuration = event.target.getDuration();
-            setDuration(videoDuration);
+            setYtDuration(videoDuration);
             startProgressTracking();
           },
           onStateChange: (event: any) => {
-            // Update playing state based on player state
             if (event.data === 1) { // Playing
-              setIsPlaying(true);
+              setYtIsPlaying(true);
             } else if (event.data === 2) { // Paused
-              setIsPlaying(false);
+              setYtIsPlaying(false);
             } else if (event.data === 0) { // Ended
               onNext();
             }
@@ -111,9 +130,16 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlay
           console.error("Error destroying player:", e);
         }
       }
-      setProgress(0);
+      setYtProgress(0);
     };
-  }, [currentSong?.id, isYouTubeReady, spotifyPlayer]);
+  }, [currentSong?.id, isYouTubeReady, useSpotify]);
+
+  // Reset lastPlayedSongRef when song changes
+  useEffect(() => {
+    if (!currentSong) {
+      lastPlayedSongRef.current = null;
+    }
+  }, [currentSong?.id]);
 
   const startProgressTracking = () => {
     if (progressIntervalRef.current) {
@@ -125,10 +151,10 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlay
         try {
           const time = playerRef.current.getCurrentTime();
           const dur = playerRef.current.getDuration();
-          setCurrentTime(time);
-          setDuration(dur);
+          setYtCurrentTime(time);
+          setYtDuration(dur);
           const newProgress = (time / dur) * 100;
-          setProgress(Math.min(newProgress, 100));
+          setYtProgress(Math.min(newProgress, 100));
         } catch (e) {
           console.error("Error getting player time:", e);
         }
@@ -137,8 +163,7 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlay
   };
 
   const togglePlayPause = () => {
-    // Use Spotify player if available and connected
-    if (spotifyPlayer?.isConnected && spotifyPlayer?.isReady) {
+    if (useSpotify) {
       if (spotifyPlayer.isPaused) {
         spotifyPlayer.resume();
       } else {
@@ -151,7 +176,7 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlay
     if (!playerRef.current) return;
     
     try {
-      if (isPlaying) {
+      if (ytIsPlaying) {
         playerRef.current.pauseVideo();
       } else {
         playerRef.current.playVideo();
@@ -162,31 +187,47 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlay
   };
 
   const handleSeek = (value: number[]) => {
-    if (!playerRef.current || !duration) return;
+    const seekPercent = value[0];
+    
+    if (useSpotify) {
+      const seekMs = (seekPercent / 100) * spotifyPlayer.duration;
+      spotifyPlayer.seek(seekMs);
+      return;
+    }
+
+    // YouTube seek
+    if (!playerRef.current || !ytDuration) return;
     
     try {
-      const newTime = (value[0] / 100) * duration;
+      const newTime = (seekPercent / 100) * ytDuration;
       playerRef.current.seekTo(newTime, true);
-      setCurrentTime(newTime);
+      setYtCurrentTime(newTime);
     } catch (e) {
       console.error("Error seeking:", e);
     }
   };
 
-  const skipBackward = () => {
+  const handleSkipBackward = () => {
+    if (useSpotify) {
+      spotifyPlayer.skipBackward();
+      return;
+    }
+
+    // YouTube skip backward
     if (!playerRef.current) return;
     
     try {
-      const newTime = Math.max(0, currentTime - 10);
+      const newTime = Math.max(0, ytCurrentTime - 10);
       playerRef.current.seekTo(newTime, true);
     } catch (e) {
       console.error("Error skipping backward:", e);
     }
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -202,7 +243,7 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlay
   }
 
   // If Spotify is connected, we can play without YouTube
-  const canPlayWithSpotify = spotifyPlayer?.isConnected && spotifyPlayer?.isReady;
+  const canPlayWithSpotify = useSpotify;
   
   if (!currentSong.youtube_video_id && !canPlayWithSpotify) {
     return (
@@ -240,8 +281,8 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlay
             className="cursor-pointer"
           />
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration)}</span>
+            <span>{formatTime(currentTimeMs)}</span>
+            <span>{formatTime(durationMs)}</span>
           </div>
         </div>
         
@@ -268,7 +309,7 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlay
           {/* Control Buttons */}
           <div className="flex items-center gap-2">
             <Button
-              onClick={skipBackward}
+              onClick={handleSkipBackward}
               variant="ghost"
               size="icon"
               className="h-10 w-10"
