@@ -17,7 +17,7 @@ const SoundboardWork = () => {
   const [loading, setLoading] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   const { queue, currentSong, loading: queueLoading, addToQueue, removeFromQueue, playNextSong } = useMusicQueue();
-  const { isConnected, connectToSpotify, play, pause, resume, isPaused, isReady } = useSpotifyPlayer(!loading);
+  const { isConnected, connectToSpotify, play, pause, resume, isPaused, isReady, seek, skipBackward, position, duration } = useSpotifyPlayer(!loading);
 
   // Check for Spotify connection callback
   useEffect(() => {
@@ -137,7 +137,7 @@ const SoundboardWork = () => {
       <NowPlayingPlayer 
         currentSong={currentSong} 
         onNext={playNextSong}
-        spotifyPlayer={{ play, pause, resume, isPaused, isReady, isConnected }}
+        spotifyPlayer={{ play, pause, resume, isPaused, isReady, isConnected, seek, skipBackward, position, duration }}
       />
     </div>
   );
