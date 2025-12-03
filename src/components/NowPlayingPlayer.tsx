@@ -201,7 +201,10 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlay
     );
   }
 
-  if (!currentSong.youtube_video_id) {
+  // If Spotify is connected, we can play without YouTube
+  const canPlayWithSpotify = spotifyPlayer?.isConnected && spotifyPlayer?.isReady;
+  
+  if (!currentSong.youtube_video_id && !canPlayWithSpotify) {
     return (
       <Card className="fixed bottom-0 left-0 right-0 p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 z-50">
         <div className="max-w-5xl mx-auto flex items-center gap-4">
@@ -213,7 +216,7 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlay
           <div className="flex-1">
             <h3 className="font-semibold">{currentSong.title}</h3>
             <p className="text-sm text-muted-foreground">{currentSong.artist}</p>
-            <p className="text-xs text-destructive mt-1">YouTube videosu bulunamadı</p>
+            <p className="text-xs text-destructive mt-1">Spotify bağlantısı gerekli veya YouTube videosu bulunamadı</p>
           </div>
           <Button onClick={onNext} variant="ghost" size="icon">
             <SkipForward className="h-6 w-6" />

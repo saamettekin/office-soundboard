@@ -78,8 +78,13 @@ const SoundboardWork = () => {
               </Button>
             )}
             {isConnected && !isReady && (
-              <div className="text-sm text-muted-foreground">
-                Spotify player hazırlanıyor...
+              <div className="flex items-center gap-3">
+                <div className="text-sm text-muted-foreground">
+                  Spotify player hazırlanıyor...
+                </div>
+                <Button onClick={connectToSpotify} variant="outline" size="sm">
+                  Yeniden Bağlan
+                </Button>
               </div>
             )}
             {isConnected && isReady && (
