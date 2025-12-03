@@ -72,7 +72,9 @@ export const useSpotifyPlayer = (enabled: boolean = true) => {
   useEffect(() => {
     if (!accessToken) return;
 
-    window.onSpotifyWebPlaybackSDKReady = () => {
+    const initializePlayer = () => {
+      if (playerRef.current) return; // Already initialized
+      
       const spotifyPlayer = new window.Spotify.Player({
         name: 'Soundboard Work Player',
         getOAuthToken: (cb: (token: string) => void) => {
@@ -134,9 +136,20 @@ export const useSpotifyPlayer = (enabled: boolean = true) => {
       setPlayer(spotifyPlayer);
     };
 
+    // If SDK is already loaded, initialize immediately
+    if (window.Spotify) {
+      initializePlayer();
+    } else {
+      // Otherwise, set up the callback
+      window.onSpotifyWebPlaybackSDKReady = initializePlayer;
+    }
+
     return () => {
       if (playerRef.current) {
         playerRef.current.disconnect();
+        playerRef.current = null;
+        setPlayer(null);
+        setIsReady(false);
       }
     };
   }, [accessToken]);
