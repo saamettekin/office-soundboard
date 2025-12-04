@@ -19,6 +19,7 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
   const [isConnected, setIsConnected] = useState(false);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [volume, setVolumeState] = useState(0.8);
   const playerRef = useRef<any>(null);
   const currentlyPlayingRef = useRef<string | null>(null);
   const positionIntervalRef = useRef<number | null>(null);
@@ -361,6 +362,17 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
     }
   };
 
+  const setVolume = async (newVolume: number) => {
+    if (player) {
+      try {
+        await player.setVolume(newVolume);
+        setVolumeState(newVolume);
+      } catch (e) {
+        console.error('Error setting volume:', e);
+      }
+    }
+  };
+
   return {
     player,
     deviceId,
@@ -370,12 +382,14 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
     isConnected,
     position,
     duration,
+    volume,
     connectToSpotify,
     play,
     pause,
     resume,
     togglePlay,
     seek,
+    setVolume,
     skipForward,
     skipBackward
   };
