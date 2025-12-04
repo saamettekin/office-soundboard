@@ -148,6 +148,35 @@ export const useMusicQueue = () => {
     }
   };
 
+  const reorderQueue = async (draggedId: string, targetId: string) => {
+    const draggedSong = queue.find(s => s.id === draggedId);
+    const targetSong = queue.find(s => s.id === targetId);
+    
+    if (!draggedSong || !targetSong) return;
+
+    // Swap positions
+    const draggedPosition = draggedSong.position;
+    const targetPosition = targetSong.position;
+
+    const { error: error1 } = await supabase
+      .from("queue_songs")
+      .update({ position: targetPosition })
+      .eq("id", draggedId);
+
+    const { error: error2 } = await supabase
+      .from("queue_songs")
+      .update({ position: draggedPosition })
+      .eq("id", targetId);
+
+    if (error1 || error2) {
+      toast({
+        title: "Hata",
+        description: "Sıra değiştirilirken bir hata oluştu",
+        variant: "destructive",
+      });
+    }
+  };
+
   const playNextSong = async () => {
     if (!currentSong) return;
 
@@ -180,6 +209,7 @@ export const useMusicQueue = () => {
     loading,
     addToQueue,
     removeFromQueue,
+    reorderQueue,
     playNextSong,
   };
 };
