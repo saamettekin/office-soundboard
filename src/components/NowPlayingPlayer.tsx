@@ -47,6 +47,15 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlay
   const progress = durationMs > 0 ? (currentTimeMs / durationMs) * 100 : 0;
   const isPlaying = useSpotify ? !spotifyPlayer.isPaused : ytIsPlaying;
 
+  // Pause Spotify when queue is empty (no current song)
+  useEffect(() => {
+    if (!currentSong && useSpotify && !spotifyPlayer.isPaused) {
+      console.log('Queue empty, pausing Spotify');
+      spotifyPlayer.pause();
+      lastPlayedSongRef.current = null;
+    }
+  }, [currentSong, useSpotify, spotifyPlayer?.isPaused]);
+
   // Play song based on available player (Spotify or YouTube)
   useEffect(() => {
     if (!currentSong) return;
