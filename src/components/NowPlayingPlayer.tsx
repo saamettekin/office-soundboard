@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { SkipForward, Music2, Play, Pause, SkipBack } from "lucide-react";
+import { SkipForward, Music2, Play, Pause, SkipBack, Volume2, VolumeX } from "lucide-react";
 import { QueueSong } from "@/hooks/useMusicQueue";
 import { useEffect, useState, useRef } from "react";
 import { useYouTubeAPI } from "@/hooks/useYouTubeAPI";
@@ -14,11 +14,13 @@ interface SpotifyPlayer {
   seek: (positionMs: number) => void;
   skipBackward: () => void;
   skipForward: () => void;
+  setVolume: (volume: number) => void;
   isPaused: boolean;
   isReady: boolean;
   isConnected: boolean;
   position: number;
   duration: number;
+  volume: number;
 }
 
 interface NowPlayingPlayerProps {
@@ -347,6 +349,31 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlay
               <SkipForward className="h-5 w-5" />
             </Button>
           </div>
+
+          {/* Volume Control */}
+          {useSpotify && (
+            <div className="flex items-center gap-2 ml-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => spotifyPlayer.setVolume(spotifyPlayer.volume > 0 ? 0 : 0.8)}
+              >
+                {spotifyPlayer.volume === 0 ? (
+                  <VolumeX className="h-4 w-4" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+              </Button>
+              <Slider
+                value={[spotifyPlayer.volume * 100]}
+                onValueChange={(value) => spotifyPlayer.setVolume(value[0] / 100)}
+                max={100}
+                step={1}
+                className="w-24"
+              />
+            </div>
+          )}
         </div>
       </div>
     </Card>
