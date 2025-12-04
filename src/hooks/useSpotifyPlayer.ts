@@ -9,7 +9,7 @@ declare global {
   }
 }
 
-export const useSpotifyPlayer = (enabled: boolean = true) => {
+export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => void) => {
   const [player, setPlayer] = useState<any>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
@@ -22,6 +22,13 @@ export const useSpotifyPlayer = (enabled: boolean = true) => {
   const playerRef = useRef<any>(null);
   const currentlyPlayingRef = useRef<string | null>(null);
   const positionIntervalRef = useRef<number | null>(null);
+  const onTrackEndRef = useRef(onTrackEnd);
+  const lastTrackUriRef = useRef<string | null>(null);
+
+  // Keep callback ref updated
+  useEffect(() => {
+    onTrackEndRef.current = onTrackEnd;
+  }, [onTrackEnd]);
 
   // Load Spotify SDK only when enabled
   useEffect(() => {
@@ -129,19 +136,49 @@ export const useSpotifyPlayer = (enabled: boolean = true) => {
       spotifyPlayer.addListener('player_state_changed', (state: any) => {
         if (!state) return;
 
+        const currentTrackUri = state.track_window.current_track?.uri;
+        
+        // Detect track end: track changed and we had a previous track
+        if (lastTrackUriRef.current && currentTrackUri !== lastTrackUriRef.current) {
+          console.log('Track changed from', lastTrackUriRef.current, 'to', currentTrackUri);
+          // Reset currently playing ref so next song can play
+          currentlyPlayingRef.current = null;
+          // Call onTrackEnd callback
+          if (onTrackEndRef.current) {
+            onTrackEndRef.current();
+          }
+        }
+        
+        lastTrackUriRef.current = currentTrackUri;
         setCurrentTrack(state.track_window.current_track);
         setIsPaused(state.paused);
         setPosition(state.position);
         setDuration(state.duration);
       });
 
-      // Start position tracking interval
+      // Start position tracking interval - also detect song end
+      let trackEndTriggered = false;
       positionIntervalRef.current = window.setInterval(() => {
         spotifyPlayer.getCurrentState().then((state: any) => {
           if (state) {
             setPosition(state.position);
             setDuration(state.duration);
             setIsPaused(state.paused);
+            
+            // Detect song end: position near duration and paused
+            if (state.duration > 0 && state.position >= state.duration - 1000 && state.paused && !trackEndTriggered) {
+              console.log('Song ended naturally');
+              trackEndTriggered = true;
+              currentlyPlayingRef.current = null;
+              if (onTrackEndRef.current) {
+                onTrackEndRef.current();
+              }
+            }
+            
+            // Reset flag when position resets (new song)
+            if (state.position < 5000) {
+              trackEndTriggered = false;
+            }
           }
         });
       }, 500);

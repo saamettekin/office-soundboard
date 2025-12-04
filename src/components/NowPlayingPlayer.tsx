@@ -13,6 +13,7 @@ interface SpotifyPlayer {
   togglePlay: () => void;
   seek: (positionMs: number) => void;
   skipBackward: () => void;
+  skipForward: () => void;
   isPaused: boolean;
   isReady: boolean;
   isConnected: boolean;
