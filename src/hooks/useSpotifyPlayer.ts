@@ -167,18 +167,16 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
               nearEndCount = 0;
             }
             
-            // Detect song end: multiple approaches
-            // 1. Position near end AND paused AND not advancing
+            // Detect song end
             const isNearEnd = currentDur > 0 && currentPos >= currentDur - 2000;
-            const isNotAdvancing = Math.abs(currentPos - lastPosition) < 200;
+            const isVeryCloseToEnd = currentDur > 0 && currentPos >= currentDur - 500;
             
             if (isNearEnd && !trackEndTriggered) {
               nearEndCount++;
-              console.log('Near end count:', nearEndCount, 'pos:', currentPos, 'dur:', currentDur, 'paused:', state.paused);
               
-              // If we've been near the end for 3+ checks (1.5s) and either paused or stuck
-              if (nearEndCount >= 3 && (state.paused || isNotAdvancing)) {
-                console.log('Song ended - triggering next song');
+              // Trigger if: very close to end OR been near end for 5+ checks (2.5s)
+              if (isVeryCloseToEnd || nearEndCount >= 5) {
+                console.log('Song ended at pos:', currentPos, 'dur:', currentDur);
                 trackEndTriggered = true;
                 nearEndCount = 0;
                 currentlyPlayingRef.current = null;
