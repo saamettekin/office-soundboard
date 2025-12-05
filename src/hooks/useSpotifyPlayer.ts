@@ -145,35 +145,55 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
       // Start position tracking interval - detect song end
       let trackEndTriggered = false;
       let lastPosition = 0;
+      let nearEndCount = 0;
+      let lastTrackUri: string | null = null;
       
       positionIntervalRef.current = window.setInterval(() => {
         spotifyPlayer.getCurrentState().then((state: any) => {
           if (state) {
             const currentPos = state.position;
             const currentDur = state.duration;
+            const currentTrackUri = state.track_window?.current_track?.uri;
             
             setPosition(currentPos);
             setDuration(currentDur);
             setIsPaused(state.paused);
             
-            // Detect song end: position reached near end AND paused AND position not moving
-            // This happens when song naturally ends
-            if (currentDur > 0 && 
-                currentPos >= currentDur - 500 && 
-                state.paused && 
-                !trackEndTriggered &&
-                Math.abs(currentPos - lastPosition) < 100) {
-              console.log('Song ended naturally at position:', currentPos, '/', currentDur);
-              trackEndTriggered = true;
-              currentlyPlayingRef.current = null;
-              if (onTrackEndRef.current) {
-                onTrackEndRef.current();
-              }
+            // Reset trigger when a new track starts
+            if (currentTrackUri && currentTrackUri !== lastTrackUri) {
+              console.log('New track detected:', currentTrackUri);
+              lastTrackUri = currentTrackUri;
+              trackEndTriggered = false;
+              nearEndCount = 0;
             }
             
-            // Reset flag when a new song starts (position resets to beginning)
+            // Detect song end: multiple approaches
+            // 1. Position near end AND paused AND not advancing
+            const isNearEnd = currentDur > 0 && currentPos >= currentDur - 2000;
+            const isNotAdvancing = Math.abs(currentPos - lastPosition) < 200;
+            
+            if (isNearEnd && !trackEndTriggered) {
+              nearEndCount++;
+              console.log('Near end count:', nearEndCount, 'pos:', currentPos, 'dur:', currentDur, 'paused:', state.paused);
+              
+              // If we've been near the end for 3+ checks (1.5s) and either paused or stuck
+              if (nearEndCount >= 3 && (state.paused || isNotAdvancing)) {
+                console.log('Song ended - triggering next song');
+                trackEndTriggered = true;
+                nearEndCount = 0;
+                currentlyPlayingRef.current = null;
+                if (onTrackEndRef.current) {
+                  onTrackEndRef.current();
+                }
+              }
+            } else if (!isNearEnd) {
+              nearEndCount = 0;
+            }
+            
+            // Also detect when position jumps back (new song started externally)
             if (currentPos < 3000 && lastPosition > 10000) {
               trackEndTriggered = false;
+              nearEndCount = 0;
             }
             
             lastPosition = currentPos;
