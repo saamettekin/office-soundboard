@@ -27,9 +27,11 @@ interface NowPlayingPlayerProps {
   currentSong: QueueSong | null;
   onNext: () => void;
   spotifyPlayer?: SpotifyPlayer;
+  queueLength?: number;
+  onStartFirstSong?: () => void;
 }
 
-export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlayingPlayerProps) => {
+export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer, queueLength = 0, onStartFirstSong }: NowPlayingPlayerProps) => {
   const [ytProgress, setYtProgress] = useState(0);
   const [ytCurrentTime, setYtCurrentTime] = useState(0);
   const [ytDuration, setYtDuration] = useState(0);
@@ -247,6 +249,12 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer }: NowPlay
         <div className="max-w-5xl mx-auto flex items-center justify-center gap-3">
           <Music2 className="h-8 w-8 text-muted-foreground" />
           <p className="text-muted-foreground">Şu anda çalan şarkı yok</p>
+          {queueLength > 0 && onStartFirstSong && (
+            <Button onClick={onStartFirstSong} variant="default" size="sm" className="ml-2">
+              <Play className="h-4 w-4 mr-1" />
+              Çalmaya Başla
+            </Button>
+          )}
         </div>
       </Card>
     );
