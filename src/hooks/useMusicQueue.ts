@@ -203,6 +203,19 @@ export const useMusicQueue = () => {
     }
   };
 
+  const startFirstSong = async () => {
+    if (currentSong || queue.length === 0) return;
+    
+    const firstSong = queue.reduce((min, song) => 
+      song.position < min.position ? song : min, queue[0]
+    );
+    
+    await supabase
+      .from("queue_songs")
+      .update({ is_playing: true })
+      .eq("id", firstSong.id);
+  };
+
   return {
     queue,
     currentSong,
@@ -211,5 +224,6 @@ export const useMusicQueue = () => {
     removeFromQueue,
     reorderQueue,
     playNextSong,
+    startFirstSong,
   };
 };
