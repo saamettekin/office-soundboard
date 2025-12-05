@@ -24,6 +24,9 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
   const currentlyPlayingRef = useRef<string | null>(null);
   const positionIntervalRef = useRef<number | null>(null);
   const onTrackEndRef = useRef(onTrackEnd);
+  const targetVolumeRef = useRef(0.8);
+  const fadeIntervalRef = useRef<number | null>(null);
+  const isFadingRef = useRef(false);
 
   // Keep callback ref updated
   useEffect(() => {
@@ -147,6 +150,7 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
       let lastPosition = 0;
       let nearEndCount = 0;
       let lastTrackUri: string | null = null;
+      let fadeOutStarted = false;
       
       positionIntervalRef.current = window.setInterval(() => {
         spotifyPlayer.getCurrentState().then((state: any) => {
@@ -165,6 +169,25 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
               lastTrackUri = currentTrackUri;
               trackEndTriggered = false;
               nearEndCount = 0;
+              fadeOutStarted = false;
+              isFadingRef.current = false;
+            }
+            
+            // Fade out when approaching end (last 3 seconds)
+            const shouldFadeOut = currentDur > 0 && currentPos >= currentDur - 3000;
+            if (shouldFadeOut && !fadeOutStarted && !isFadingRef.current) {
+              fadeOutStarted = true;
+              isFadingRef.current = true;
+              // Gradual fade out
+              let currentVol = targetVolumeRef.current;
+              const fadeStep = currentVol / 6; // 6 steps over ~3 seconds
+              fadeIntervalRef.current = window.setInterval(() => {
+                currentVol = Math.max(0, currentVol - fadeStep);
+                spotifyPlayer.setVolume(currentVol);
+                if (currentVol <= 0) {
+                  if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+                }
+              }, 500);
             }
             
             // Detect song end
@@ -192,6 +215,7 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
             if (currentPos < 3000 && lastPosition > 10000) {
               trackEndTriggered = false;
               nearEndCount = 0;
+              fadeOutStarted = false;
             }
             
             lastPosition = currentPos;
@@ -220,6 +244,9 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
     return () => {
       if (positionIntervalRef.current) {
         clearInterval(positionIntervalRef.current);
+      }
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
       }
       if (playerRef.current) {
         playerRef.current.disconnect();
@@ -293,7 +320,17 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
 
     currentlyPlayingRef.current = spotifyUri;
 
+    // Clear any existing fade interval
+    if (fadeIntervalRef.current) {
+      clearInterval(fadeIntervalRef.current);
+    }
+
     try {
+      // Start with low volume for fade in
+      if (playerRef.current) {
+        await playerRef.current.setVolume(0.1);
+      }
+
       const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
         headers: {
@@ -314,6 +351,23 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
         } else {
           throw new Error('Failed to play track');
         }
+      } else {
+        // Fade in over ~1.5 seconds
+        isFadingRef.current = true;
+        let currentVol = 0.1;
+        const targetVol = targetVolumeRef.current;
+        const fadeStep = (targetVol - 0.1) / 6;
+        fadeIntervalRef.current = window.setInterval(() => {
+          currentVol = Math.min(targetVol, currentVol + fadeStep);
+          if (playerRef.current) {
+            playerRef.current.setVolume(currentVol);
+            setVolumeState(currentVol);
+          }
+          if (currentVol >= targetVol) {
+            if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+            isFadingRef.current = false;
+          }
+        }, 250);
       }
     } catch (error) {
       console.error('Error playing track:', error);
@@ -385,6 +439,7 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
       try {
         await player.setVolume(newVolume);
         setVolumeState(newVolume);
+        targetVolumeRef.current = newVolume;
       } catch (e) {
         console.error('Error setting volume:', e);
       }
