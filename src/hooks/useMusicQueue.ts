@@ -79,45 +79,33 @@ export const useMusicQueue = () => {
     album_cover_url: string | null;
     duration_ms: number;
   }) => {
+    // First, get user info synchronously from cache if possible
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { data: profile } = await supabase
       .from("profiles")
       .select("email")
-      .eq("user_id", user?.id)
+      .eq("user_id", user.id)
       .single();
-
-    if (!user) return;
-
-    // Get YouTube video ID
-    let youtubeVideoId = null;
-    try {
-      const { data: youtubeData, error: youtubeError } = await supabase.functions.invoke('spotify/youtube', {
-        body: { artist: song.artist, title: song.title }
-      });
-
-      if (!youtubeError && youtubeData?.youtube_video_id) {
-        youtubeVideoId = youtubeData.youtube_video_id;
-      }
-    } catch (error) {
-      console.error('Error fetching YouTube video:', error);
-    }
 
     const maxPosition = queue.length > 0 
       ? Math.max(...queue.map(s => s.position))
       : 0;
 
-    const { error } = await supabase.from("queue_songs").insert({
+    // Insert immediately without waiting for YouTube
+    const { data: insertedSong, error } = await supabase.from("queue_songs").insert({
       spotify_song_id: song.spotify_song_id,
       title: song.title,
       artist: song.artist,
       album_cover_url: song.album_cover_url,
       duration_ms: song.duration_ms,
-      youtube_video_id: youtubeVideoId,
+      youtube_video_id: null, // Will be updated in background
       added_by_user_id: user.id,
       added_by_name: profile?.email?.split("@")[0] || "Unknown",
       position: maxPosition + 1,
-      is_playing: queue.length === 0, // İlk şarkı otomatik çalacak
-    });
+      is_playing: queue.length === 0,
+    }).select().single();
 
     if (error) {
       toast({
@@ -125,11 +113,26 @@ export const useMusicQueue = () => {
         description: "Şarkı eklenirken bir hata oluştu",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Şarkı eklendi! 🎵",
-        description: `${song.title} sıraya eklendi`,
-      });
+      return;
+    }
+
+    toast({
+      title: "Şarkı eklendi! 🎵",
+      description: `${song.title} sıraya eklendi`,
+    });
+
+    // Fetch YouTube video ID in background (non-blocking)
+    if (insertedSong) {
+      supabase.functions.invoke('spotify/youtube', {
+        body: { artist: song.artist, title: song.title }
+      }).then(({ data: youtubeData, error: youtubeError }) => {
+        if (!youtubeError && youtubeData?.youtube_video_id) {
+          supabase.from("queue_songs")
+            .update({ youtube_video_id: youtubeData.youtube_video_id })
+            .eq("id", insertedSong.id)
+            .then(() => console.log('YouTube ID updated for', song.title));
+        }
+      }).catch(err => console.error('Background YouTube fetch error:', err));
     }
   };
 

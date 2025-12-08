@@ -62,12 +62,17 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer, queueLeng
 
   // Play song based on available player (Spotify or YouTube)
   useEffect(() => {
-    if (!currentSong) return;
+    if (!currentSong) {
+      lastPlayedSongRef.current = null;
+      return;
+    }
 
     // Prevent duplicate play calls for same song
     if (lastPlayedSongRef.current === currentSong.id) {
       return;
     }
+
+    console.log('NowPlayingPlayer: Playing new song:', currentSong.title, 'ID:', currentSong.id);
 
     // Try Spotify first if connected and ready
     if (useSpotify && currentSong.spotify_song_id) {
@@ -149,11 +154,9 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer, queueLeng
     };
   }, [currentSong?.id, isYouTubeReady, useSpotify]);
 
-  // Reset lastPlayedSongRef when song changes
+  // Log when currentSong changes for debugging
   useEffect(() => {
-    if (!currentSong) {
-      lastPlayedSongRef.current = null;
-    }
+    console.log('NowPlayingPlayer: currentSong changed to:', currentSong?.title || 'null');
   }, [currentSong?.id]);
 
   const startProgressTracking = () => {
