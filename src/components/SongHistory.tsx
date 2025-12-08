@@ -1,9 +1,23 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useSongHistory } from "@/hooks/useSongHistory";
-import { Clock, TrendingUp, User } from "lucide-react";
+import { useSongHistory, HistorySong } from "@/hooks/useSongHistory";
+import { useMusicQueue } from "@/hooks/useMusicQueue";
+import { Clock, TrendingUp, User, ListPlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export const SongHistory = () => {
   const { history, loading, getMostAddedUser, getMostPlayedSong } = useSongHistory();
+  const { addToQueue } = useMusicQueue();
+
+  const handleReAddSong = async (song: HistorySong) => {
+    await addToQueue({
+      spotify_song_id: song.spotify_song_id,
+      title: song.title,
+      artist: song.artist,
+      album_cover_url: song.album_cover_url,
+      duration_ms: 0,
+    });
+  };
 
   if (loading) {
     return <p className="text-muted-foreground">Yükleniyor...</p>;
@@ -101,6 +115,15 @@ export const SongHistory = () => {
                       minute: "2-digit",
                     })}
                   </p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => handleReAddSong(song)}
+                    title="Sıraya tekrar ekle"
+                  >
+                    <ListPlus className="h-4 w-4" />
+                  </Button>
                 </div>
               ))}
             </div>
