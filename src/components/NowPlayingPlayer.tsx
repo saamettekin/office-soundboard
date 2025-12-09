@@ -2,8 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SkipForward, Music2, Play, Pause, SkipBack, Volume2, VolumeX } from "lucide-react";
 import { QueueSong } from "@/hooks/useMusicQueue";
-import { useEffect, useState, useRef } from "react";
-import { useYouTubeAPI } from "@/hooks/useYouTubeAPI";
+import { useEffect, useRef } from "react";
 import { Slider } from "@/components/ui/slider";
 
 interface SpotifyPlayer {
@@ -32,35 +31,24 @@ interface NowPlayingPlayerProps {
 }
 
 export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer, queueLength = 0, onStartFirstSong }: NowPlayingPlayerProps) => {
-  const [ytProgress, setYtProgress] = useState(0);
-  const [ytCurrentTime, setYtCurrentTime] = useState(0);
-  const [ytDuration, setYtDuration] = useState(0);
-  const [ytIsPlaying, setYtIsPlaying] = useState(false);
-  const playerRef = useRef<YT.Player | null>(null);
-  const playerContainerRef = useRef<HTMLDivElement>(null);
-  const isYouTubeReady = useYouTubeAPI();
-  const progressIntervalRef = useRef<number | null>(null);
   const lastPlayedSongRef = useRef<string | null>(null);
 
-  // Determine if using Spotify
-  const useSpotify = spotifyPlayer?.isConnected && spotifyPlayer?.isReady;
-
-  // Calculate display values based on player type
-  const currentTimeMs = useSpotify ? spotifyPlayer.position : ytCurrentTime * 1000;
-  const durationMs = useSpotify ? spotifyPlayer.duration : ytDuration * 1000;
+  const isConnected = spotifyPlayer?.isConnected && spotifyPlayer?.isReady;
+  const currentTimeMs = spotifyPlayer?.position || 0;
+  const durationMs = spotifyPlayer?.duration || 0;
   const progress = durationMs > 0 ? (currentTimeMs / durationMs) * 100 : 0;
-  const isPlaying = useSpotify ? !spotifyPlayer.isPaused : ytIsPlaying;
+  const isPlaying = spotifyPlayer ? !spotifyPlayer.isPaused : false;
 
-  // Pause Spotify when queue is empty (no current song)
+  // Pause Spotify when queue is empty
   useEffect(() => {
-    if (!currentSong && useSpotify && !spotifyPlayer.isPaused) {
+    if (!currentSong && isConnected && spotifyPlayer && !spotifyPlayer.isPaused) {
       console.log('Queue empty, pausing Spotify');
       spotifyPlayer.pause();
       lastPlayedSongRef.current = null;
     }
-  }, [currentSong, useSpotify, spotifyPlayer?.isPaused]);
+  }, [currentSong, isConnected, spotifyPlayer?.isPaused]);
 
-  // Play song based on available player (Spotify or YouTube)
+  // Play song when currentSong changes
   useEffect(() => {
     if (!currentSong) {
       lastPlayedSongRef.current = null;
@@ -72,170 +60,35 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer, queueLeng
       return;
     }
 
-    console.log('NowPlayingPlayer: Playing new song:', currentSong.title, 'ID:', currentSong.id);
-
-    // Try Spotify first if connected and ready
-    if (useSpotify && currentSong.spotify_song_id) {
-      lastPlayedSongRef.current = currentSong.id;
-      const spotifyUri = `spotify:track:${currentSong.spotify_song_id}`;
-      spotifyPlayer.play(spotifyUri);
+    // Only play if Spotify is connected
+    if (!isConnected || !spotifyPlayer) {
+      console.log('Spotify not ready, cannot play');
       return;
     }
 
-    // Fallback to YouTube if no Spotify or no YouTube video ID
-    if (!currentSong?.youtube_video_id || !isYouTubeReady || !playerContainerRef.current) return;
-
+    console.log('Playing new song:', currentSong.title, 'ID:', currentSong.id);
     lastPlayedSongRef.current = currentSong.id;
-
-    // Clear any existing player
-    if (playerRef.current) {
-      try {
-        playerRef.current.destroy();
-      } catch (e) {
-        console.error("Error destroying player:", e);
-      }
-      playerRef.current = null;
-    }
-
-    // Create hidden container for player
-    const playerId = `youtube-player-${Date.now()}`;
-    const playerDiv = document.createElement('div');
-    playerDiv.id = playerId;
-    playerDiv.style.display = 'none';
-    playerContainerRef.current.appendChild(playerDiv);
-
-    // Initialize YouTube player
-    try {
-      playerRef.current = new (window as any).YT.Player(playerId, {
-        videoId: currentSong.youtube_video_id,
-        playerVars: {
-          autoplay: 1,
-          controls: 0,
-        },
-        events: {
-          onReady: (event: any) => {
-            event.target.playVideo();
-            setYtIsPlaying(true);
-            const videoDuration = event.target.getDuration();
-            setYtDuration(videoDuration);
-            startProgressTracking();
-          },
-          onStateChange: (event: any) => {
-            if (event.data === 1) { // Playing
-              setYtIsPlaying(true);
-            } else if (event.data === 2) { // Paused
-              setYtIsPlaying(false);
-            } else if (event.data === 0) { // Ended
-              onNext();
-            }
-          },
-          onError: (event: any) => {
-            console.error("YouTube player error:", event.data);
-            onNext();
-          }
-        },
-      });
-    } catch (e) {
-      console.error("Error creating YouTube player:", e);
-    }
-
-    return () => {
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
-      if (playerRef.current) {
-        try {
-          playerRef.current.destroy();
-        } catch (e) {
-          console.error("Error destroying player:", e);
-        }
-      }
-      setYtProgress(0);
-    };
-  }, [currentSong?.id, isYouTubeReady, useSpotify]);
-
-  // Log when currentSong changes for debugging
-  useEffect(() => {
-    console.log('NowPlayingPlayer: currentSong changed to:', currentSong?.title || 'null');
-  }, [currentSong?.id]);
-
-  const startProgressTracking = () => {
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-    }
-
-    progressIntervalRef.current = window.setInterval(() => {
-      if (playerRef.current && currentSong) {
-        try {
-          const time = playerRef.current.getCurrentTime();
-          const dur = playerRef.current.getDuration();
-          setYtCurrentTime(time);
-          setYtDuration(dur);
-          const newProgress = (time / dur) * 100;
-          setYtProgress(Math.min(newProgress, 100));
-        } catch (e) {
-          console.error("Error getting player time:", e);
-        }
-      }
-    }, 500);
-  };
+    
+    const spotifyUri = `spotify:track:${currentSong.spotify_song_id}`;
+    spotifyPlayer.play(spotifyUri);
+  }, [currentSong?.id, isConnected]);
 
   const togglePlayPause = () => {
-    if (useSpotify) {
-      // Use togglePlay for most reliable behavior
+    if (spotifyPlayer) {
       spotifyPlayer.togglePlay();
-      return;
-    }
-
-    // Fallback to YouTube
-    if (!playerRef.current) return;
-    
-    try {
-      if (ytIsPlaying) {
-        playerRef.current.pauseVideo();
-      } else {
-        playerRef.current.playVideo();
-      }
-    } catch (e) {
-      console.error("Error toggling play/pause:", e);
     }
   };
 
   const handleSeek = (value: number[]) => {
-    const seekPercent = value[0];
-    
-    if (useSpotify) {
-      const seekMs = (seekPercent / 100) * spotifyPlayer.duration;
+    if (spotifyPlayer && durationMs > 0) {
+      const seekMs = (value[0] / 100) * durationMs;
       spotifyPlayer.seek(seekMs);
-      return;
-    }
-
-    // YouTube seek
-    if (!playerRef.current || !ytDuration) return;
-    
-    try {
-      const newTime = (seekPercent / 100) * ytDuration;
-      playerRef.current.seekTo(newTime, true);
-      setYtCurrentTime(newTime);
-    } catch (e) {
-      console.error("Error seeking:", e);
     }
   };
 
   const handleSkipBackward = () => {
-    if (useSpotify) {
+    if (spotifyPlayer) {
       spotifyPlayer.skipBackward();
-      return;
-    }
-
-    // YouTube skip backward
-    if (!playerRef.current) return;
-    
-    try {
-      const newTime = Math.max(0, ytCurrentTime - 10);
-      playerRef.current.seekTo(newTime, true);
-    } catch (e) {
-      console.error("Error skipping backward:", e);
     }
   };
 
@@ -263,10 +116,7 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer, queueLeng
     );
   }
 
-  // If Spotify is connected, we can play without YouTube
-  const canPlayWithSpotify = useSpotify;
-  
-  if (!currentSong.youtube_video_id && !canPlayWithSpotify) {
+  if (!isConnected) {
     return (
       <Card className="fixed bottom-0 left-0 right-0 p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 z-50">
         <div className="max-w-5xl mx-auto flex items-center gap-4">
@@ -278,7 +128,7 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer, queueLeng
           <div className="flex-1">
             <h3 className="font-semibold">{currentSong.title}</h3>
             <p className="text-sm text-muted-foreground">{currentSong.artist}</p>
-            <p className="text-xs text-destructive mt-1">Spotify bağlantısı gerekli veya YouTube videosu bulunamadı</p>
+            <p className="text-xs text-destructive mt-1">Spotify bağlantısı gerekli</p>
           </div>
           <Button onClick={onNext} variant="ghost" size="icon">
             <SkipForward className="h-6 w-6" />
@@ -290,7 +140,6 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer, queueLeng
 
   return (
     <Card className="fixed bottom-0 left-0 right-0 p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 z-50">
-      <div ref={playerContainerRef} style={{ display: 'none' }} />
       <div className="max-w-5xl mx-auto space-y-2">
         {/* Progress Bar with Time */}
         <div className="space-y-1">
@@ -362,7 +211,7 @@ export const NowPlayingPlayer = ({ currentSong, onNext, spotifyPlayer, queueLeng
           </div>
 
           {/* Volume Control */}
-          {useSpotify && (
+          {spotifyPlayer && (
             <div className="flex items-center gap-2 ml-4">
               <Button
                 variant="ghost"
