@@ -148,7 +148,6 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
       // Start position tracking interval - detect song end
       let trackEndTriggered = false;
       let lastPosition = 0;
-      let nearEndCount = 0;
       let lastTrackUri: string | null = null;
       let fadeOutStarted = false;
       
@@ -158,17 +157,17 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
             const currentPos = state.position;
             const currentDur = state.duration;
             const currentTrackUri = state.track_window?.current_track?.uri;
+            const isPaused = state.paused;
             
             setPosition(currentPos);
             setDuration(currentDur);
-            setIsPaused(state.paused);
+            setIsPaused(isPaused);
             
             // Reset trigger when a new track starts
             if (currentTrackUri && currentTrackUri !== lastTrackUri) {
               console.log('New track detected:', currentTrackUri);
               lastTrackUri = currentTrackUri;
               trackEndTriggered = false;
-              nearEndCount = 0;
               fadeOutStarted = false;
               isFadingRef.current = false;
             }
@@ -178,9 +177,8 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
             if (shouldFadeOut && !fadeOutStarted && !isFadingRef.current) {
               fadeOutStarted = true;
               isFadingRef.current = true;
-              // Gradual fade out
               let currentVol = targetVolumeRef.current;
-              const fadeStep = currentVol / 6; // 6 steps over ~3 seconds
+              const fadeStep = currentVol / 6;
               fadeIntervalRef.current = window.setInterval(() => {
                 currentVol = Math.max(0, currentVol - fadeStep);
                 spotifyPlayer.setVolume(currentVol);
@@ -190,38 +188,32 @@ export const useSpotifyPlayer = (enabled: boolean = true, onTrackEnd?: () => voi
               }, 500);
             }
             
-            // Detect song end
-            const isNearEnd = currentDur > 0 && currentPos >= currentDur - 2000;
-            const isVeryCloseToEnd = currentDur > 0 && currentPos >= currentDur - 500;
+            // Detect song end - trigger when very close to end OR paused near end
+            const isNearEnd = currentDur > 0 && currentPos >= currentDur - 1000;
+            const isVeryNearEnd = currentDur > 0 && currentPos >= currentDur - 300;
             
-            if (isNearEnd && !trackEndTriggered) {
-              nearEndCount++;
-              
-              // Trigger if: very close to end OR been near end for 5+ checks (2.5s)
-              if (isVeryCloseToEnd || nearEndCount >= 5) {
-                console.log('Song ended at pos:', currentPos, 'dur:', currentDur);
+            if (!trackEndTriggered && currentDur > 0) {
+              // Trigger if: very close to end, or paused near end (spotify auto-pauses at track end)
+              if (isVeryNearEnd || (isNearEnd && isPaused)) {
+                console.log('Song ended - pos:', currentPos, 'dur:', currentDur, 'paused:', isPaused);
                 trackEndTriggered = true;
-                nearEndCount = 0;
                 currentlyPlayingRef.current = null;
                 if (onTrackEndRef.current) {
                   onTrackEndRef.current();
                 }
               }
-            } else if (!isNearEnd) {
-              nearEndCount = 0;
             }
             
-            // Also detect when position jumps back (new song started externally)
+            // Reset if position jumps back (new song started externally)
             if (currentPos < 3000 && lastPosition > 10000) {
               trackEndTriggered = false;
-              nearEndCount = 0;
               fadeOutStarted = false;
             }
             
             lastPosition = currentPos;
           }
         });
-      }, 500);
+      }, 300);
 
       spotifyPlayer.connect().then((success: boolean) => {
         if (success) {
